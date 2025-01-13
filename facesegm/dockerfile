@@ -1,0 +1,19 @@
+FROM ultralytics/yolov5:latest-arm64
+
+WORKDIR /app
+
+# Копируем ваш проект в контейнер
+COPY ./app /app
+
+# Обновление pip
+RUN pip install --upgrade pip
+
+# Установка зависимостей
+RUN pip install pillow>=10.3.0 requests>=2.32.2 tqdm>=4.66.3 ultralytics>=8.2.34 setuptools>=70.0.0
+
+# Устанавливаем дополнительные зависимости
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

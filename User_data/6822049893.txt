@@ -1,0 +1,15 @@
+[2024-12-11 13:07:56] 6822049893: /start
+[2024-12-11 13:34:08] 6822049893: /list
+[2024-12-11 13:34:08] 6822049893: /list
+[2024-12-11 13:35:50] 6822049893: /learn skibidi
+[2024-12-11 13:36:11] 6822049893: /findphoto ['skibidi', 'toilet'] [USER GOT foundphoto_None_20241211.jpg]
+[2024-12-11 13:36:59] 6822049893: /findphoto ['frank', 'zappa', 'sheik', 'yerbouti'] [USER GOT foundphoto_None_20241211.jpg]
+[2024-12-11 13:37:36] 6822049893: /findphoto ['kaladin', 'stormblessed'] [USER GOT foundphoto_None_20241211.jpg]
+[2024-12-11 13:37:53] 6822049893: /findphoto ['shallan', 'davar'] [USER GOT foundphoto_None_20241211.jpg]
+[2024-12-11 13:38:05] 6822049893: /findphoto ['stormlight', 'archive'] [USER GOT foundphoto_None_20241211.jpg]
+[2024-12-11 13:38:25] 6822049893: /findphoto ['knights', 'radiant'] [USER GOT foundphoto_None_20241211.jpg]
+[2024-12-11 13:48:39] 6822049893: /findphoto ['kingambit'] [USER GOT foundphoto_None_20241211.jpg]
+[2024-12-11 13:48:46] 6822049893: /findphoto ['mega', 'mawile'] [USER GOT foundphoto_None_20241211.jpg]
+[2024-12-11 13:49:00] 6822049893: /findphoto ['mega-mawile'] [USER GOT foundphoto_None_20241211.jpg]
+[2024-12-11 14:09:30] 6822049893: /findphoto ['mawile', 'mega'] [USER GOT foundphoto_None_20241211.jpg]
+[2024-12-11 14:09:57] 6822049893: /findphoto ['rizz'] [USER GOT foundphoto_None_20241211.jpg]

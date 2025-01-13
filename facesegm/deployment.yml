@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: face-detection-app
+  labels:
+    app: face-detection-app
+spec:
+  replicas: 2  # Количество реплик
+  selector:
+    matchLabels:
+      app: face-detection-app
+  template:
+    metadata:
+      labels:
+        app: face-detection-app
+    spec:
+      containers:
+      - name: face-detection-app
+        image: pklyuchko/face-detection-app:latest
+        ports:
+        - containerPort: 8000
+        imagePullPolicy: Always

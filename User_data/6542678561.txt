@@ -1,0 +1,27 @@
+[2024-11-07 13:01:36] 6542678561: /start
+[2024-11-07 13:01:37] 6542678561: /start
+[2024-11-07 13:01:38] 6542678561: /start
+[2024-11-07 13:01:38] 6542678561: /start
+[2024-11-07 13:01:38] 6542678561: /start
+[2024-11-07 13:01:39] 6542678561: /start
+[2024-11-07 13:01:39] 6542678561: /start
+[2024-11-07 13:01:39] 6542678561: /start
+[2024-11-07 13:01:47] 6542678561: /list
+[2024-11-07 13:02:00] 6542678561: /start
+[2024-11-07 13:02:04] 6542678561: /buttons
+[2024-11-07 13:02:05] 6542678561 used button 2
+[2024-11-07 13:02:19] 6542678561: /findphoto ['black', 'men'] [USER GOT foundphoto_DoctorMarvello_20241107.jpg]
+[2024-11-07 13:04:03] 6542678561: /polgraph 2-2*sin(r)+sin(r)*(sqrt(abs(cos(r)))/(sin(r)+1.4)
+[2024-11-07 13:04:13] 6542678561: /graph 2x-3, sin(x), x^2
+[2024-11-07 13:04:18] 6542678561: /graph 2x-3, sin(x), x^2
+[2024-11-07 13:04:41] 6542678561: /graph sin(x), x^2
+[2024-11-07 13:04:47] 6542678561: /graph sin(x)
+[2024-11-07 13:05:01] 6542678561: /graph 3x5
+[2024-11-07 13:05:04] 6542678561: /graph 35
+[2024-11-07 13:05:11] 6542678561: /graph cos(y)
+[2024-11-07 13:05:25] 6542678561: /graph cos(x)
+[2024-11-22 12:58:15] 6542678561: /findphoto ['oh', 'gona'] [USER GOT foundphoto_DoctorMarvello_20241122.jpg]
+[2024-11-22 12:58:19] 6542678561: /findphoto [] [USER GOT foundphoto_DoctorMarvello_20241122.jpg]
+[2024-11-22 12:58:44] 6542678561: /findphoto ['isakay-james', 'perkins'] [USER GOT foundphoto_DoctorMarvello_20241122.jpg]
+[2024-11-22 12:59:29] 6542678561: /findphoto ['dota', '2', 'pedo', 'leaks'] [USER GOT foundphoto_DoctorMarvello_20241122.jpg]
+[2024-11-22 12:59:47] 6542678561: /findphoto ['low', 'taper', 'fade', 'ninja'] [USER GOT foundphoto_DoctorMarvello_20241122.jpg]
