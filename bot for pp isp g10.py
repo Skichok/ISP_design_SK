@@ -14,6 +14,7 @@ import numpy as np #to create graphs
 import sympy as sp #to parse mathematical expressions
 import imageio
 import re
+#from google.generativeai import GenerateText
 from icrawler.builtin import GoogleImageCrawler #to parse photoes
 from math import floor
 import sqlite3
