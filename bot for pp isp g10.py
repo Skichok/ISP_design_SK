@@ -169,7 +169,7 @@ async def list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             file.write(f"[{current_time}] {user_id}: /list")
         print(f"File {file_name} created and logs saved.")
         
-    await update.message.reply_text("Of course, here is the list of commands:\n/start - starts the bot\n/list - list of commands\n/hello - The bot responds with hello and your name in Telegram\n/qrcode <prompt> - Sends back to you QR code for yours prompt\n/graph <function> - you can send function and bot will send back graph of this function! (For example: 2x-3, sin(x), x^2)\n/learn <function without slash> - Will tell you about the function's operation and its implementation (for example: qrcode, graph)\n/feedback <text> - Please, write your feedback about the bot, or anything you would like us to add!\n(Admin functions: /ping, /getusers)")
+    await update.message.reply_text("Of course, here is the list of commands:\n/start - starts the bot\n/list - list of commands\n/hello - The bot responds with hello and your name in Telegram\n/qrcode <prompt> - Sends back to you QR code for yours prompt\n/stats - the bot sends back a graph of the number of scheduled events for each day of the week (recurring)\n/learn <function without slash> - Will tell you about the function's operation and its implementation (for example: qrcode, graph)\n/feedback <text> - Please, write your feedback about the bot, or anything you would like us to add!\n(Admin functions: /ping, /getusers)")
 
 async def qr_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
@@ -202,77 +202,6 @@ async def qr_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     img_byte_arr.seek(0)  # Go to the start of the BytesIO object
     
     await context.bot.send_photo(chat_id=update.effective_chat.id, photo=img_byte_arr)
-
-async def graph(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_id = update.effective_user.id
-    username = update.effective_user.username
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
-    file_name = f"User_data/{user_id}.txt"
-    usernome = update.effective_user.username
-
-
-    # Log the command usage
-    expression_text = ' '.join(context.args)  # Get the expression from the command arguments
-
-    # Append log entry
-    if os.path.exists(file_name):
-        with open(file_name, 'a') as file:
-            file.write(f"\n[{current_time}] {user_id}: /graph {expression_text}")
-        print(f"Logs added to {file_name}.")
-    else:
-        with open(file_name, 'w') as file:
-            file.write(f"[{current_time}] {user_id}: /graph {expression_text}")
-        print(f"File {file_name} created and logs saved.")
-
-    # Insert '*' between numbers and variables (e.g., convert '2x' to '2*x')
-    expression_text = re.sub(r'(?<=[0-9])(?=[a-zA-Z])', '*', expression_text)
-
-    # Parse the expression
-    try:
-        x = sp.symbols('x')  # Define the symbol 'x'
-        expression = sp.sympify(expression_text)  # Parse the expression
-    except (sp.SympifyError, ValueError):
-        await update.message.reply_text("Invalid mathematical expression. Please try again.")
-        return
-
-    # Generate values for x and evaluate y based on the expression
-    x_values = np.linspace(-10, 10, 400)
-    try:
-        # Use lambdify to convert sympy expression to a function that numpy can understand
-        y_values = sp.lambdify(x, expression, "numpy")(x_values)
-    except Exception as e:
-        await update.message.reply_text("Error evaluating the expression. Please check the function syntax.")
-        return
-
-    # Plot the function with a dark theme
-    plt.figure(facecolor='black')  # Set the figure background color
-    plt.plot(x_values, y_values, color='cyan', label=f'y = {expression_text}')  # Plot in cyan color
-
-    # Add coordinate axes
-    plt.axhline(0, color='white', linewidth=0.8)  # x-axis in white
-    plt.axvline(0, color='white', linewidth=0.8)  # y-axis in white
-
-    # Title and labels with white color for visibility on dark background
-    plt.title(f'Graph of y = {expression_text}', color='white')
-    plt.xlabel('x', color='white')
-    plt.ylabel('y', color='white')
-
-    # Additional plot formatting
-    plt.grid(True, color='gray')  # Set gridlines to gray
-    plt.legend(facecolor='black', edgecolor='white', labelcolor='white', loc='upper right')  # Legend with white text
-    plt.gca().set_facecolor("black")  # Set the axes background color to black
-    plt.tick_params(colors='white')  # Set the tick labels color to white
-
-    # Save the plot with a unique filename
-    graph_filename = f"Graph_pic/graph_{username}_{unique_timestamp}.png"
-    plt.savefig(graph_filename, facecolor='black')  # Ensure the background remains black when saved
-    plt.close()
-
-    # Send the plot back to the user
-    with open(graph_filename, 'rb') as image_file:
-        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=image_file)
-
 
 async def feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
@@ -407,17 +336,44 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if os.path.exists(log_file_name):
         with open(log_file_name, 'a', encoding='utf-8') as log_file:
             log_file.write(
-                f"\n[{current_time}] {user_id}: /getusers [ADMIN ONLY COMMAND]")  # Logging if such a file already exists
+                f"\n[{current_time}] {user_id}: /stats")  # Logging if such a file already exists
         print(f"Logs added to {log_file_name}.")
     else:
         with open(log_file_name, 'w', encoding='utf-8') as log_file:
             log_file.write(
-                f"[{current_time}] {user_id}: /getusers [ADMIN ONLY COMMAND]")  # Logging if there is no such file
+                f"[{current_time}] {user_id}: /stats")  # Logging if there is no such file
         print(f"Logs added to {log_file_name}.")
 
     graph_stats(stats_dict=stats_dict, theme=theme, language=language, pic_path=file_path)
     with open(file_path, 'rb') as image_file:
         await context.bot.send_photo(chat_id=update.effective_chat.id, photo=image_file)
+
+async def theme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/pic/stats_{user_id}_{unique_timestamp}.png"
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id=user_id)
+    language = db.language(user_id=user_id)
+    current_theme = db.theme(user_id=user_id)
+    new_theme = "dark" if current_theme == "light" else "light"
+    db.switch_theme(user_id=user_id, theme=new_theme)
+
+    await update.message.reply_text(f"Theme changed from {current_theme} to {new_theme}")
+
+    if os.path.exists(log_file_name):
+        with open(log_file_name, 'a', encoding='utf-8') as log_file:
+            log_file.write(
+                f"\n[{current_time}] {user_id}: /theme [{theme} -> {new_theme}]")  # Logging if such a file already exists
+        print(f"Logs added to {log_file_name}.")
+    else:
+        with open(log_file_name, 'w', encoding='utf-8') as log_file:
+            log_file.write(
+                f"[{current_time}] {user_id}: /theme [{theme} -> {new_theme}]")  # Logging if there is no such file
+        print(f"Logs added to {log_file_name}.")
 
 
 #app = ApplicationBuilder().token("7332049578:AAE5V5jZbLgfPXiLzJoyqZ8cXViNmi3Y0Sk").build() #Connecting to the bot using token
@@ -434,8 +390,6 @@ app.add_handler(CommandHandler("list", list)) #Creating handler for command with
 
 app.add_handler(CommandHandler("qrcode", qr_code)) #Creating handler for command with function
 
-app.add_handler(CommandHandler("graph", graph)) #Creating handler for command with function
-
 app.add_handler(CommandHandler("feedback", feedback)) #Creating handler for command with function
 
 app.add_handler(CommandHandler("learn", learn)) #Creating handler for command with function
@@ -445,6 +399,8 @@ app.add_handler(CommandHandler("learn", learn)) #Creating handler for command wi
 app.add_handler(CommandHandler("getusers", admin_check))
 
 app.add_handler(CommandHandler("stats", stats))
+
+app.add_handler(CommandHandler("theme", theme))
 
 app.run_polling()
 
