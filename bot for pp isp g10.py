@@ -17,73 +17,12 @@ import re
 #from google.generativeai import GenerateText
 from icrawler.builtin import GoogleImageCrawler #to parse photoes
 from math import floor
-import sqlite3
+#import sqlite3
+from USERS_DATA_DB_WORK_FILE import CalendarBotDB
 
+db = CalendarBotDB()
 ADMIN_USER_ID = 1130761632  # ID of telegram account
 ADMIN_USERNAME = "ne_sprashival" # Username of telegram account
-
-def user_sqlinform(user, user_id):
-    # Connection to data base (creates a file if it doesn't exist)
-    conn = sqlite3.connect("User_data/users.db")
-    cursor = conn.cursor()
-
-    # Creates table, if it doesn't exist
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL,
-        user_id INTEGER NOT NULL UNIQUE
-    )
-    """)
-
-    # Put data in table
-    try:
-        cursor.execute("INSERT INTO users (username, user_id) VALUES (?, ?)", (user, user_id))
-        conn.commit()
-        print(f"User {user} with ID {user_id} have been added to data base.")
-    except sqlite3.IntegrityError:
-        print(f"User with ID {user_id} already exist's in database.")
-
-    # close connection
-    conn.close()
-
-
-def get_user_id_by_username(username):
-    # connection to database
-    conn = sqlite3.connect("User_data/users.db")
-    cursor = conn.cursor()
-
-    # Executing a SQL query
-    cursor.execute("SELECT user_id FROM users WHERE username = ?", (username,))
-    result = cursor.fetchone()  # Getting one data
-
-    # closing connection
-    conn.close()
-
-    # returning ID of user, if it exists
-    if result:
-        return result[0]
-    else:
-        print(f"User with username '{username}' doesn't exist.")
-        return None
-
-
-def get_all_users():
-    # Connecting to database
-    conn = sqlite3.connect("User_data/users.db")
-    cursor = conn.cursor()
-
-    # Execute SQL Query to Get All Users
-    cursor.execute("SELECT username FROM users")
-    results = cursor.fetchall()  # Get all records as a list of tuples
-
-    # Closing connection
-    conn.close()
-
-    # Convert a list of tuples to a list of strings
-    users = [row[0] for row in results]
-    return users
-
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id # stating user id
@@ -91,15 +30,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")# stating unique timestamp
     file_name = f"User_data/{user_id}.txt"
     usernome = update.effective_user.username
-    user_sqlinform(usernome, user_id)
-
-    # getting user_id by username
-    user_idi = get_user_id_by_username(usernome)
-    if user_idi is not None:
-        print(f"ID of user '{usernome}': {user_idi}")
-    else:
-        print(f"user {usernome} doesn't exists")
-    # Check if the file exists
 
     if os.path.exists(file_name):
     # If file exists, append the new numbers to a new line
@@ -122,14 +52,7 @@ async def hello(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
     file_name = f"User_data/{user_id}.txt"
     usernome = update.effective_user.username
-    user_sqlinform(usernome, user_id)
 
-    # getting user_id by username
-    user_idi = get_user_id_by_username(usernome)
-    if user_idi is not None:
-        print(f"ID of user '{usernome}': {user_idi}")
-    else:
-        print(f"user {usernome} doesn't exists")
 
     # Check if the file exists
     if os.path.exists(file_name):
@@ -150,14 +73,6 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
     file_name = f"User_data/{user_id}.txt"
     usernome = update.effective_user.username
-    user_sqlinform(usernome, user_id)
-
-    # getting user_id by username
-    user_idi = get_user_id_by_username(usernome)
-    if user_idi is not None:
-        print(f"ID of user '{usernome}': {user_idi}")
-    else:
-        print(f"user {usernome} doesn't exists")
 
     # Check if the file exists
     if os.path.exists(file_name):
@@ -179,14 +94,6 @@ async def list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
     file_name = f"User_data/{user_id}.txt"
     usernome = update.effective_user.username
-    user_sqlinform(usernome, user_id)
-
-    # getting user_id by username
-    user_idi = get_user_id_by_username(usernome)
-    if user_idi is not None:
-        print(f"ID of user '{usernome}': {user_idi}")
-    else:
-        print(f"user {usernome} doesn't exists")
 
 
     # Check if the file exists
@@ -210,14 +117,6 @@ async def qr_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     file_name = f"User_data/{user_id}.txt"
     user_prompt = (update.message.text)[8:]
     usernome = update.effective_user.username
-    user_sqlinform(usernome, user_id)
-
-    # getting user_id by username
-    user_idi = get_user_id_by_username(usernome)
-    if user_idi is not None:
-        print(f"ID of user '{usernome}': {user_idi}")
-    else:
-        print(f"user {usernome} doesn't exists")
 
 
     # Check if the file exists
@@ -250,14 +149,6 @@ async def graph(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
     file_name = f"User_data/{user_id}.txt"
     usernome = update.effective_user.username
-    user_sqlinform(usernome, user_id)
-
-    # getting user_id by username
-    user_idi = get_user_id_by_username(usernome)
-    if user_idi is not None:
-        print(f"ID of user '{usernome}': {user_idi}")
-    else:
-        print(f"user {usernome} doesn't exists")
 
 
     # Log the command usage
@@ -329,14 +220,6 @@ async def feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
     feedback_text = ' '.join(context.args)  # Feedback text (after the command)
     usernome = update.effective_user.username
-    user_sqlinform(usernome, user_id)
-
-    # getting user_id by username
-    user_idi = get_user_id_by_username(usernome)
-    if user_idi is not None:
-        print(f"ID of user '{usernome}': {user_idi}")
-    else:
-        print(f"user {usernome} doesn't exists")
 
 
     if not feedback_text:
@@ -373,14 +256,7 @@ async def learn(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
     print(context.args)
     usernome = update.effective_user.username
-    user_sqlinform(usernome, user_id)
 
-    # getting user_id by username
-    user_idi = get_user_id_by_username(usernome)
-    if user_idi is not None:
-        print(f"ID of user '{usernome}': {user_idi}")
-    else:
-        print(f"user {usernome} doesn't exists")
 
     if context.args != []:
         prompt = context.args[0]
@@ -455,28 +331,6 @@ async def admin_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("This function is for admins only.")
         print(f"Unauthorized access attempt by user {username} (ID: {user_id}).")
 
-
-
-user_sqlinform("testuser", 12)
-
-# test of getting user_id by username
-usernome = "testuser"
-user_id = get_user_id_by_username(usernome)
-if user_id is not None:
-    print(f"ID of user '{usernome}': {user_id}")
-else:
-    print(f"user {usernome} doesn't exists")
-
-# test on real account
-usernome = "ne_sprashival"
-user_id = get_user_id_by_username(usernome)
-if user_id is not None:
-    print(f"ID of user '{usernome}': {user_id}")
-else:
-    print(f"user {usernome} doesn't exists")
-
-all_users = get_all_users()
-print("All users:", all_users)
 
 #app = ApplicationBuilder().token("7332049578:AAE5V5jZbLgfPXiLzJoyqZ8cXViNmi3Y0Sk").build() #Connecting to the bot using token
 

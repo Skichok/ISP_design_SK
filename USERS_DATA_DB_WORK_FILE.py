@@ -1,222 +1,221 @@
 import sqlite3
-import os
-import matplotlib.pyplot as plt
 from datetime import datetime
 
-# Путь к базе данных и изображениям
-db_path = './User_data/schedules.db'
-pic_path = './User_data/pic'
+class CalendarBotDB:
+    def __init__(self, db_name="calendar_bot.db"):
+        self.connection = sqlite3.connect(db_name)
+        self.cursor = self.connection.cursor()
+        self._create_tables()
 
-# Создание директории для изображений, если ее нет
-os.makedirs(pic_path, exist_ok=True)
+    def _create_tables(self):
+        """Creates tables if they do not exist."""
+        self.cursor.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                registration_timestamp DATETIME,
+                theme INTEGER CHECK (theme IN (0, 1)),
+                language TEXT DEFAULT 'en',
+                streak INTEGER CHECK (streak IN (0, 1))
+            );
 
+            CREATE TABLE IF NOT EXISTS single_events (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                event_timestamp DATETIME,
+                description TEXT,
+                duration_minutes INTEGER,
+                notify_before_minutes INTEGER,
+                UNIQUE(user_id, event_timestamp),
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
 
-# Функция для создания новой таблицы для пользователя
-def new_table(username, user_id):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+            CREATE TABLE IF NOT EXISTS recurring_events (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                day_of_week INTEGER CHECK (day_of_week BETWEEN 0 AND 6),
+                event_time TIME,
+                description TEXT,
+                duration_minutes INTEGER,
+                notify_before_minutes INTEGER,
+                UNIQUE(user_id, day_of_week, event_time),
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+            """
+        )
+        self.connection.commit()
 
-    # Проверка, существует ли уже таблица для данного пользователя
-    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='user_{user_id}'")
-    if cursor.fetchone():
-        print(f"user {user_id} already exists")
-        conn.close()
-        return
+    def add_user(self, user_id, username, theme=0, language="en", streak=0):
+        """Adds a new user."""
+        registration_timestamp = datetime.now()
+        self.cursor.execute(
+            """
+            INSERT INTO users (user_id, username, registration_timestamp, theme, language, streak)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, username, registration_timestamp, theme, language, streak),
+        )
+        self.connection.commit()
 
-    # Создание таблицы для нового пользователя, если она не существует
-    cursor.execute(f'''
-    CREATE TABLE IF NOT EXISTS user_{user_id} (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT,
-        timestamp TEXT,
-        monday TEXT,
-        tuesday TEXT,
-        wednesday TEXT,
-        thursday TEXT,
-        friday TEXT,
-        saturday TEXT,
-        sunday TEXT
+    def add_single_event(self, user_id, event_timestamp, description, duration_minutes, notify_before_minutes):
+        """Adds a one-time event."""
+        self.cursor.execute(
+            """
+            INSERT INTO single_events (user_id, event_timestamp, description, duration_minutes, notify_before_minutes)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (user_id, event_timestamp, description, duration_minutes, notify_before_minutes),
+        )
+        self.connection.commit()
+
+    def add_recurring_event(self, user_id, day_of_week, event_time, description, duration_minutes, notify_before_minutes):
+        """Adds a recurring event."""
+        self.cursor.execute(
+            """
+            INSERT INTO recurring_events (user_id, day_of_week, event_time, description, duration_minutes, notify_before_minutes)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, day_of_week, event_time, description, duration_minutes, notify_before_minutes),
+        )
+        self.connection.commit()
+
+    def get_user_events_single(self, user_id):
+        """Returns all events for a user."""
+        self.cursor.execute(
+            """
+            SELECT 
+                user_id, 
+                event_timestamp, 
+                description, 
+                duration_minutes, 
+                notify_before_minutes 
+            FROM single_events 
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        )
+        return self.cursor.fetchall()
+
+    def get_user_events_recurring(self, user_id):
+        """Returns all events for a user."""
+        self.cursor.execute(
+            """
+            SELECT 
+                user_id, 
+                day_of_week, 
+                event_time, 
+                description, 
+                duration_minutes, 
+                notify_before_minutes 
+            FROM recurring_events 
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        )
+        return self.cursor.fetchall()
+
+    def delete_recurring_event(self, user_id, day_of_week, event_time):
+        """Deletes a recurring event."""
+        self.cursor.execute(
+            """
+            DELETE FROM recurring_events 
+            WHERE user_id = ? AND day_of_week = ? AND event_time = ?
+            """,
+            (user_id, day_of_week, event_time),
+        )
+        self.connection.commit()
+
+    def delete_single_event(self, user_id, event_timestamp):
+        """Deletes a single event."""
+        self.cursor.execute(
+            """
+            DELETE FROM single_events 
+            WHERE user_id = ? AND event_timestamp = ?
+            """,
+            (user_id, event_timestamp),
+        )
+        self.connection.commit()
+
+    def switch_theme(self, user_id, theme):
+        """Switches the user's theme."""
+        theme_value = 1 if theme == "dark" else 0
+        self.cursor.execute(
+            """
+            UPDATE users SET theme = ? WHERE user_id = ?
+            """,
+            (theme_value, user_id),
+        )
+        self.connection.commit()
+
+    def change_language(self, user_id, language):
+        """Changes the user's language."""
+        self.cursor.execute(
+            """
+            UPDATE users SET language = ? WHERE user_id = ?
+            """,
+            (language, user_id),
+        )
+        self.connection.commit()
+
+    def switch_streak(self, user_id, streak):
+        """Switches the user's streak."""
+        streak_value = 1 if streak else 0
+        self.cursor.execute(
+            """
+            UPDATE users SET streak = ? WHERE user_id = ?
+            """,
+            (streak_value, user_id),
+        )
+        self.connection.commit()
+
+    def delete_user(self, user_id):
+        """Deletes a user and all their events."""
+        self.cursor.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+        self.connection.commit()
+
+    def close(self):
+        """Closes the database connection."""
+        self.connection.close()
+
+# Example usage
+if __name__ == "__main__":
+    db = CalendarBotDB()
+
+    # Adding a user
+    db.add_user(user_id=1, username="test_user", theme=1, language="en", streak=1)
+
+    # Adding a one-time event
+    db.add_single_event(
+        user_id=1,
+        event_timestamp="2025-01-22 15:30:00",
+        description="Meeting with team",
+        duration_minutes=60,
+        notify_before_minutes=15
     )
-    ''')
 
-    # Вставка записи в таблицу с пользователем
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # Уникальный timestamp
-    cursor.execute(f'''
-    INSERT INTO user_{user_id} (username, timestamp, monday, tuesday, wednesday, thursday, friday, saturday, sunday)
-    VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-    ''', (username, timestamp))
+    # Adding a recurring event
+    db.add_recurring_event(
+        user_id=1,
+        day_of_week=2,
+        event_time="09:00:00",
+        description="Weekly Standup",
+        duration_minutes=30,
+        notify_before_minutes=10
+    )
 
-    conn.commit()
-    conn.close()
+    # Fetching user events
+    events = db.get_user_events_single(user_id=1)
+    print(events)
 
+    # Changing theme to light
+    db.switch_theme(user_id=1, theme="light")
 
-def remove_table(user_id):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    # Changing language to French
+    db.change_language(user_id=1, language="fr")
 
-    # Проверка существования таблицы для пользователя
-    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='user_{user_id}'")
-    if not cursor.fetchone():
-        print(f"Table for user {user_id} does not exist.")
-        conn.close()
-        return
+    # Changing streak status
+    db.switch_streak(user_id=1, streak=False)
 
-    # Удаление таблицы пользователя
-    cursor.execute(f"DROP TABLE IF EXISTS user_{user_id}")
-    conn.commit()
-
-    print(f"Table for user {user_id} has been removed.")
-    conn.close()
-
-
-# Функция для добавления события
-def add_event(user_id, day, time, event_name, notification_status=True):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    # Проверяем существование таблицы для пользователя
-    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='user_{user_id}'")
-    if not cursor.fetchone():
-        print(f"Table for user {user_id} does not exist.")
-        conn.close()
-        return
-
-    # Получаем текущее значение для указанного дня
-    cursor.execute(f"SELECT {day} FROM user_{user_id} WHERE id = (SELECT MAX(id) FROM user_{user_id})")
-    current_schedule = cursor.fetchone()
-
-    if current_schedule and current_schedule[0]:
-        events = current_schedule[0].split(', ')
-        for event in events:
-            if event.startswith(time):
-                print(f"You have {event.split(' - ')[1]} at this time! Delete or move it first.")
-                conn.close()
-                return
-
-    # Добавляем событие, если конфликта нет
-    event = f"{time} - {event_name} - Notification: {notification_status}"
-    cursor.execute(f'''
-    UPDATE user_{user_id}
-    SET {day} = COALESCE({day}, '') || ? || ', '
-    WHERE id = (SELECT MAX(id) FROM user_{user_id})
-    ''', (event,))
-
-    conn.commit()
-    conn.close()
-    print(f"Event '{event_name}' added successfully for {day} at {time}.")
-
-def list_user_tables():
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    # Запрос к системной таблице SQLite для получения списка таблиц с именами user_<user_id>
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'user_%'")
-
-    # Получаем все таблицы и выводим их
-    tables = cursor.fetchall()
-    for table in tables:
-        print(table[0])  # Выводим имя таблицы (например, user_12345)
-
-    conn.close()
-
-
-def view_user_table(user_id):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    # Проверка существования таблицы для пользователя
-    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='user_{user_id}'")
-    if not cursor.fetchone():
-        print(f"Table for user {user_id} does not exist.")
-        conn.close()
-        return
-
-    # Запрос на извлечение данных из таблицы пользователя
-    cursor.execute(f"SELECT * FROM user_{user_id}")
-    rows = cursor.fetchall()
-
-    if not rows:
-        print(f"No data found for user {user_id}.")
-    else:
-        # Вывод данных
-        for row in rows:
-            print(row)
-
-    conn.close()
-
-
-# Функция для создания графика статистики запланированных событий по дням недели
-def stats(user_id, day="ALL", theme="white"):
-    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")  # stating unique timestamp
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    # Проверка существования таблицы
-    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='user_{user_id}'")
-    if not cursor.fetchone():
-        print("Table does not exist for user:", user_id)
-        return
-
-    # Получение данных из таблицы
-    cursor.execute(f"SELECT * FROM user_{user_id} WHERE id = (SELECT MAX(id) FROM user_{user_id})")
-    row = cursor.fetchone()
-
-    if not row:
-        print("No data found for user:", user_id)
-        return
-
-    # Проверка корректности параметра day
-    if day != "ALL" and day not in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
-        print("Invalid day. Please specify a valid day or 'ALL'.")
-        return
-
-    # Собираем количество событий по дням недели
-    events_count = {day: len(row[i + 3].split(', ')) if row[i + 3] else 0
-                    for i, day in
-                    enumerate(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])}
-
-    if day != "ALL":
-        events_count = {day: events_count[day]}  # Если day не 'ALL', фильтруем по указанному дню
-
-    # Рисование графика
-    fig, ax = plt.subplots(figsize=(8, 6))
-
-    if theme == "black":
-        ax.set_facecolor("black")
-        fig.patch.set_facecolor("black")
-        ax.tick_params(colors="white")
-        ax.spines[:].set_color("white")
-        ax.xaxis.label.set_color("white")
-        ax.yaxis.label.set_color("white")
-        ax.title.set_color("white")
-        bar_color = "lightblue"
-    else:
-        bar_color = "skyblue"
-
-    ax.bar(events_count.keys(), events_count.values(), color=bar_color)
-    ax.set_title(f"Number of Events Scheduled for User {user_id}")
-    ax.set_xlabel("Days")
-    ax.set_ylabel("Number of Events")
-
-    # Сохранение графика
-    timestamp = row[2]
-    username = row[1]
-    graph_filename = f"{pic_path}/{username}_{user_id}_{timestamp}_{unique_timestamp}_stats.png"
-    plt.savefig(graph_filename, bbox_inches='tight', pad_inches=0.1)
-    plt.close()
-
-    conn.close()
-
-
-# Пример использования:
-new_table('user1', 12345)
-add_event(12345, 'monday', '08:00', 'Wake up', True)
-add_event(12345, 'monday', '18:00', 'Dinner', True)
-add_event(12345, 'monday', '20:00', 'TV Show', True)
-add_event(12345, 'tuesday', '08:00', 'Wake up', True)
-stats(12345, 'ALL', "black")  # Рисует график для всех дней
-stats(12345, 'monday')  # Рисует график для понедельника
-list_user_tables()
-view_user_table(12345)
-
-#remove_table(12345)
+    # Closing the database
+    db.close()
