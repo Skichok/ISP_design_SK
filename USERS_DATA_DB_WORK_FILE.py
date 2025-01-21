@@ -283,14 +283,14 @@ if __name__ == "__main__":
 
     # Fetching user events
 
-    db.add_recurring_event(
-        user_id=1130761632,
-        day_of_week=2,
-        event_time="09:00:00",
-        description="Weekly Standup",
-        duration_minutes=30,
-        notify_before_minutes=10
-         )
+    # db.add_recurring_event(
+    #     user_id=1130761632,
+    #     day_of_week=2,
+    #     event_time="09:00:00",
+    #     description="Weekly Standup",
+    #     duration_minutes=30,
+    #     notify_before_minutes=10
+    #      )
 
     events = db.get_user_events_single(user_id=1)
     print(events)

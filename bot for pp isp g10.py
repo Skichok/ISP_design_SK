@@ -377,6 +377,44 @@ async def theme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 f"[{current_time}] {user_id}: /theme [{theme} -> {new_theme}]")  # Logging if there is no such file
         print(f"Logs added to {log_file_name}.")
 
+async def change_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/pic/stats_{user_id}_{unique_timestamp}.png"
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id=user_id)
+    language = db.language(user_id=user_id)
+    current_language = db.language(user_id=user_id)
+    new_language = "fr" if current_language == "en" else "en"  # Пример смены языка с "en" на "fr" и наоборот
+    db.change_language(user_id=user_id, language=new_language)
+    if new_language == "en":
+        await update.message.reply_text(f"Language changed from {current_language} to {new_language}")
+        if os.path.exists(log_file_name):
+            with open(log_file_name, 'a', encoding='utf-8') as log_file:
+                log_file.write(
+                    f"\n[{current_time}] {user_id}: /language [fr -> en]")  # Logging if such a file already exists
+            print(f"Logs added to {log_file_name}.")
+        else:
+            with open(log_file_name, 'w', encoding='utf-8') as log_file:
+                log_file.write(
+                    f"[{current_time}] {user_id}: /language [fr -> en]")  # Logging if there is no such file
+            print(f"Logs added to {log_file_name}.")
+    else:
+        await update.message.reply_text(f"Langue modifiée depuis {current_language} à {new_language}")
+        if os.path.exists(log_file_name):
+            with open(log_file_name, 'a', encoding='utf-8') as log_file:
+                log_file.write(
+                    f"\n[{current_time}] {user_id}: /language [en -> fr]")  # Logging if such a file already exists
+            print(f"Logs added to {log_file_name}.")
+        else:
+            with open(log_file_name, 'w', encoding='utf-8') as log_file:
+                log_file.write(
+                    f"[{current_time}] {user_id}: /language [en -> fr]")  # Logging if there is no such file
+            print(f"Logs added to {log_file_name}.")
+
 
 #app = ApplicationBuilder().token("7332049578:AAE5V5jZbLgfPXiLzJoyqZ8cXViNmi3Y0Sk").build() #Connecting to the bot using token
 
@@ -403,6 +441,8 @@ app.add_handler(CommandHandler("getusers", admin_check))
 app.add_handler(CommandHandler("stats", stats))
 
 app.add_handler(CommandHandler("theme", theme))
+
+app.add_handler(CommandHandler("language", change_language))
 
 app.run_polling()
 
