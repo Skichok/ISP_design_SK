@@ -24,12 +24,73 @@ db = CalendarBotDB()
 ADMIN_USER_ID = 1130761632  # ID of telegram account
 ADMIN_USERNAME = "ne_sprashival" # Username of telegram account
 
+
+def graph_stats(stats_dict, theme="light", language="en", pic_path="stats_chart.png"):
+    """
+    Renders a bar graph from stats_dict, with customizable theme and language.
+
+    :param stats_dict: dict, where keys are days of the week (0-6) and values are event counts
+    :param theme: str, either "light" or "dark" (default is "light")
+    :param language: str, either "en" (default) or "fr"
+    :param pic_path: str, the path to save the generated graph
+    """
+    # Days of the week in English and French
+    days_en = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    days_fr = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+
+    # Titles and labels in English and French
+    titles = {
+        "en": {"title": "Weekly Event Statistics", "x_label": "Days of the Week", "y_label": "Number of Events"},
+        "fr": {"title": "Statistiques des événements hebdomadaires", "x_label": "Jours de la semaine",
+               "y_label": "Nombre d'événements"}
+    }
+
+    # Select labels and titles based on language
+    days_labels = days_en if language == "en" else days_fr
+    title = titles[language]["title"]
+    x_label = titles[language]["x_label"]
+    y_label = titles[language]["y_label"]
+
+    # Map day indices to labels
+    labels = [days_labels[day] for day in stats_dict.keys()]
+    values = [de for de in stats_dict.values()]
+
+    # Set up theme-based colors
+    if theme == "light":
+        bg_color = "white"
+        bar_color = "black"
+    else:  # dark theme
+        bg_color = "black"
+        bar_color = "white"
+
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+    plt.bar(labels, values, color=bar_color)
+
+    # Customize appearance
+    plt.gca().set_facecolor(bg_color)  # Background color
+    plt.xticks(color=bar_color, fontsize=12)
+    plt.yticks(color=bar_color, fontsize=12)
+    plt.xlabel(x_label, fontsize=14, color=bar_color)
+    plt.ylabel(y_label, fontsize=14, color=bar_color)
+    plt.title(title, fontsize=16, color=bar_color)
+
+    # Adjust layout and save the plot
+    plt.tight_layout()
+    plt.savefig(pic_path, facecolor=bg_color)
+    plt.close()
+    return
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id # stating user id
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")# stating current time
     unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")# stating unique timestamp
     file_name = f"User_data/{user_id}.txt"
     usernome = update.effective_user.username
+    if len(db.get_user(user_id=user_id)) == 0:
+        db.add_user(user_id=user_id, username=usernome)
+    else:
+        pass
 
     if os.path.exists(file_name):
     # If file exists, append the new numbers to a new line
@@ -331,6 +392,33 @@ async def admin_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("This function is for admins only.")
         print(f"Unauthorized access attempt by user {username} (ID: {user_id}).")
 
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/pic/stats_{user_id}_{unique_timestamp}.png"
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id)
+    language = db.language(user_id)
+
+
+    if os.path.exists(log_file_name):
+        with open(log_file_name, 'a', encoding='utf-8') as log_file:
+            log_file.write(
+                f"\n[{current_time}] {user_id}: /getusers [ADMIN ONLY COMMAND]")  # Logging if such a file already exists
+        print(f"Logs added to {log_file_name}.")
+    else:
+        with open(log_file_name, 'w', encoding='utf-8') as log_file:
+            log_file.write(
+                f"[{current_time}] {user_id}: /getusers [ADMIN ONLY COMMAND]")  # Logging if there is no such file
+        print(f"Logs added to {log_file_name}.")
+
+    graph_stats(stats_dict=stats_dict, theme=theme, language=language, pic_path=file_path)
+    with open(file_path, 'rb') as image_file:
+        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=image_file)
+
 
 #app = ApplicationBuilder().token("7332049578:AAE5V5jZbLgfPXiLzJoyqZ8cXViNmi3Y0Sk").build() #Connecting to the bot using token
 
@@ -355,6 +443,8 @@ app.add_handler(CommandHandler("learn", learn)) #Creating handler for command wi
 #app.add_handler(CommandHandler("facedetect", facedetect)) #Creating handler for command with function
 
 app.add_handler(CommandHandler("getusers", admin_check))
+
+app.add_handler(CommandHandler("stats", stats))
 
 app.run_polling()
 

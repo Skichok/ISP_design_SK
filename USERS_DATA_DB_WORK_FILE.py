@@ -81,6 +81,24 @@ class CalendarBotDB:
         )
         self.connection.commit()
 
+    def get_user(self, user_id):
+        """Returns user, if exists."""
+        self.cursor.execute(
+            """
+            SELECT 
+                user_id, 
+                username, 
+                registration_timestamp, 
+                theme, 
+                language, 
+                streak
+            FROM users
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        )
+        return self.cursor.fetchall()
+
     def get_user_events_single(self, user_id):
         """Returns all events for a user."""
         self.cursor.execute(
@@ -241,26 +259,27 @@ if __name__ == "__main__":
     db = CalendarBotDB()
 
     # Adding a user
-    db.add_user(user_id=1, username="test_user", theme=1, language="en", streak=1)
 
-    # Adding a one-time event
-    db.add_single_event(
-        user_id=1,
-        event_timestamp="2025-01-22 15:30:00",
-        description="Meeting with team",
-        duration_minutes=60,
-        notify_before_minutes=15
-    )
-
-    # Adding a recurring event
-    db.add_recurring_event(
-        user_id=1,
-        day_of_week=2,
-        event_time="09:00:00",
-        description="Weekly Standup",
-        duration_minutes=30,
-        notify_before_minutes=10
-    )
+    # db.add_user(user_id=1, username="test_user", theme=1, language="en", streak=1)
+    #
+    # # Adding a one-time event
+    # db.add_single_event(
+    #     user_id=1,
+    #     event_timestamp="2025-01-22 15:30:00",
+    #     description="Meeting with team",
+    #     duration_minutes=60,
+    #     notify_before_minutes=15
+    # )
+    #
+    # # Adding a recurring event
+    # db.add_recurring_event(
+    #     user_id=1,
+    #     day_of_week=2,
+    #     event_time="09:00:00",
+    #     description="Weekly Standup",
+    #     duration_minutes=30,
+    #     notify_before_minutes=10
+    # )
 
     # Fetching user events
     events = db.get_user_events_single(user_id=1)
@@ -274,6 +293,8 @@ if __name__ == "__main__":
 
     # Changing streak status
     db.switch_streak(user_id=1, streak=False)
+
+    print(db.get_user(user_id=3456))
 
     # Closing the database
     db.close()
