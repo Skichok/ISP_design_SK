@@ -1,10 +1,7 @@
 import sqlite3
 import os
 import matplotlib.pyplot as plt
-from matplotlib.table import Table
-from matplotlib.ticker import MaxNLocator
 from datetime import datetime
-from PIL import Image, ImageDraw, ImageFont
 
 # Путь к базе данных и изображениям
 db_path = './User_data/schedules.db'
@@ -15,9 +12,16 @@ os.makedirs(pic_path, exist_ok=True)
 
 
 # Функция для создания новой таблицы для пользователя
-def new_table(username, user_id, timestamp):
+def new_table(username, user_id):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+
+    # Проверка, существует ли уже таблица для данного пользователя
+    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='user_{user_id}'")
+    if cursor.fetchone():
+        print(f"user {user_id} already exists")
+        conn.close()
+        return
 
     # Создание таблицы для нового пользователя, если она не существует
     cursor.execute(f'''
@@ -36,6 +40,7 @@ def new_table(username, user_id, timestamp):
     ''')
 
     # Вставка записи в таблицу с пользователем
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # Уникальный timestamp
     cursor.execute(f'''
     INSERT INTO user_{user_id} (username, timestamp, monday, tuesday, wednesday, thursday, friday, saturday, sunday)
     VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
@@ -45,40 +50,100 @@ def new_table(username, user_id, timestamp):
     conn.close()
 
 
+def remove_table(user_id):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Проверка существования таблицы для пользователя
+    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='user_{user_id}'")
+    if not cursor.fetchone():
+        print(f"Table for user {user_id} does not exist.")
+        conn.close()
+        return
+
+    # Удаление таблицы пользователя
+    cursor.execute(f"DROP TABLE IF EXISTS user_{user_id}")
+    conn.commit()
+
+    print(f"Table for user {user_id} has been removed.")
+    conn.close()
+
+
 # Функция для добавления события
-def add_event(user_id, day, time, notification_status=True):
+def add_event(user_id, day, time, event_name, notification_status=True):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     # Добавление события в нужный день
+    event = f'{time} - {event_name} - Notification: {notification_status}'
     cursor.execute(f'''
     UPDATE user_{user_id}
-    SET {day} = ?
+    SET {day} = COALESCE({day}, '') || ? || ', '
     WHERE id = (SELECT MAX(id) FROM user_{user_id})
-    ''', (f'{time} - Notification: {notification_status}',))
+    ''', (event,))
 
     conn.commit()
     conn.close()
 
 
 # Функция для удаления события
-def remove_event(user_id, day, time):
+def remove_event(user_id, day, time, event_name):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     # Удаление события из таблицы
     cursor.execute(f'''
     UPDATE user_{user_id}
-    SET {day} = NULL
+    SET {day} = REPLACE({day}, ? || ', ', '')
     WHERE id = (SELECT MAX(id) FROM user_{user_id}) AND {day} LIKE ?
-    ''', (f'%{time}%',))
+    ''', (f'{time} - {event_name}', f'%{time} - {event_name}%'))
 
     conn.commit()
     conn.close()
 
 
-# Функция для получения таблицы и рисования на изображении
-def get_table(user_id, day="ALL"):
+def list_user_tables():
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Запрос к системной таблице SQLite для получения списка таблиц с именами user_<user_id>
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'user_%'")
+
+    # Получаем все таблицы и выводим их
+    tables = cursor.fetchall()
+    for table in tables:
+        print(table[0])  # Выводим имя таблицы (например, user_12345)
+
+    conn.close()
+
+
+def view_user_table(user_id):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Проверка существования таблицы для пользователя
+    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='user_{user_id}'")
+    if not cursor.fetchone():
+        print(f"Table for user {user_id} does not exist.")
+        conn.close()
+        return
+
+    # Запрос на извлечение данных из таблицы пользователя
+    cursor.execute(f"SELECT * FROM user_{user_id}")
+    rows = cursor.fetchall()
+
+    if not rows:
+        print(f"No data found for user {user_id}.")
+    else:
+        # Вывод данных
+        for row in rows:
+            print(row)
+
+    conn.close()
+
+
+# Функция для создания графика статистики запланированных событий по дням недели
+def stats(user_id, day="ALL"):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -101,57 +166,36 @@ def get_table(user_id, day="ALL"):
         print("Invalid day. Please specify a valid day or 'ALL'.")
         return
 
-    # Рисование таблицы
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.axis('off')
-    table = Table(ax, bbox=[0, 0, 1, 1])
+    # Собираем количество событий по дням недели
+    events_count = {day: len(row[i + 3].split(', ')) if row[i + 3] else 0
+                    for i, day in
+                    enumerate(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])}
 
-    # Добавление столбцов и строк
-    days_of_week = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    data = [row[3:], ]  # Извлекаем только данные о расписании, пропуская id, username, timestamp
-
-    for i, col in enumerate(['Day', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']):
-        table.add_cell(0, i, 1.0 / 8, 0.1, text=col, loc='center', facecolor='white')
-
-    for i, event in enumerate(data[0]):
-        # Проверка на None
-        if event is None:
-            event = ""  # Если события нет, оставляем пустое место
-        table.add_cell(i + 1, 0, 1.0 / 8, 0.1, text=days_of_week[i].capitalize(), loc='center', facecolor='white')
-        table.add_cell(i + 1, 1, 1.0 / 8, 0.1, text=event, loc='center', facecolor='black', edgecolor='white')
-
-    ax.add_table(table)
-    plt.tight_layout()
-
-    # Сохранение таблицы
-    timestamp = row[2]
-    username = row[1]
-    img_filename = f"{pic_path}/{username}_{user_id}_{timestamp}_table.png"
-    plt.savefig(img_filename, bbox_inches='tight', pad_inches=0.1)
-    plt.close()
-
-    # Статистика по дням
-    time_spent = {day: 0 for day in days_of_week}
-    for i, event in enumerate(data[0]):
-        if event:
-            time_spent[days_of_week[i]] += 1  # Примерное время в часах для каждого дня
+    if day != "ALL":
+        events_count = {day: events_count[day]}  # Если day не 'ALL', фильтруем по указанному дню
 
     # Рисование графика
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.bar(time_spent.keys(), time_spent.values(), color='skyblue')
-    ax.set_title(f"Time Spent per Day for User {user_id}")
+    ax.bar(events_count.keys(), events_count.values(), color='skyblue')
+    ax.set_title(f"Number of Events Scheduled for User {user_id}")
     ax.set_xlabel("Days")
-    ax.set_ylabel("Events Scheduled")
-    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.set_ylabel("Number of Events")
 
     # Сохранение графика
-    graph_filename = f"{pic_path}/{username}_{user_id}_{timestamp}_graph.png"
+    timestamp = row[2]
+    username = row[1]
+    graph_filename = f"{pic_path}/{username}_{user_id}_{timestamp}_stats.png"
     plt.savefig(graph_filename, bbox_inches='tight', pad_inches=0.1)
     plt.close()
 
     conn.close()
 
 # Пример использования:
-new_table('user1', 12345, '2025-01-21')
-add_event(12345, 'monday', '10:00', True)
-get_table(12345, 'ALL')  # Визуализирует таблицу и график для пользователя с id 12345
+new_table('user1', 12345)
+add_event(12345, 'monday', '08:00', 'Wake up', True)
+add_event(12345, 'monday', '18:00', 'Dinner', True)
+stats(12345, 'ALL')  # Рисует график для всех дней
+#stats(12345, 'monday')  # Рисует график для понедельника
+list_user_tables()
+view_user_table(12345)
+remove_table(12345)
