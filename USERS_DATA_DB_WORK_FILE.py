@@ -175,6 +175,63 @@ class CalendarBotDB:
         self.cursor.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
         self.connection.commit()
 
+    def language(self, user_id):
+        """Returns the language of the user."""
+        self.cursor.execute(
+            """
+            SELECT language FROM users WHERE user_id = ?
+            """,
+            (user_id,)
+        )
+        result = self.cursor.fetchone()
+        return result[0] if result else None
+
+    def streak(self, user_id):
+        """Returns the streak status of the user."""
+        self.cursor.execute(
+            """
+            SELECT streak FROM users WHERE user_id = ?
+            """,
+            (user_id,)
+        )
+        result = self.cursor.fetchone()
+        return bool(result[0]) if result else None
+
+    def theme(self, user_id):
+        """Returns the theme of the user as 'dark' or 'light'."""
+        self.cursor.execute(
+            """
+            SELECT theme FROM users WHERE user_id = ?
+            """,
+            (user_id,)
+        )
+        result = self.cursor.fetchone()
+        if result:
+            return "dark" if result[0] == 1 else "light"
+        return None
+
+    def stats(self, user_id):
+        """Returns a dictionary with the count of recurring events for each day of the week."""
+        self.cursor.execute(
+            """
+            SELECT day_of_week, COUNT(*) 
+            FROM recurring_events 
+            WHERE user_id = ? 
+            GROUP BY day_of_week
+            """,
+            (user_id,)
+        )
+        result = self.cursor.fetchall()
+
+        # Создаем словарь, где для каждого дня недели устанавливается значение 0
+        stats_dict = {day: 0 for day in range(7)}
+
+        # Заполняем словарь результатами запроса
+        for day_of_week, count in result:
+            stats_dict[day_of_week] = count
+
+        return stats_dict
+
     def close(self):
         """Closes the database connection."""
         self.connection.close()
