@@ -320,7 +320,7 @@ async def admin_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     # Check if the user is an admin
     if user_id == ADMIN_USER_ID and username == ADMIN_USERNAME:
         # Check if the database file exists
-        db_file = "User_data/users.db"
+        db_file = db.dbpath
         if os.path.exists(db_file):
             await context.bot.send_document(chat_id=update.effective_chat.id, document=open(db_file, 'rb'))
             print(f"Admin {username} accessed the database file.")

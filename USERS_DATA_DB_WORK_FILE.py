@@ -2,7 +2,8 @@ import sqlite3
 from datetime import datetime
 
 class CalendarBotDB:
-    def __init__(self, db_name="calendar_bot.db"):
+    dbpath = "./User_data/schedules.db"
+    def __init__(self, db_name=dbpath):
         self.connection = sqlite3.connect(db_name)
         self.cursor = self.connection.cursor()
         self._create_tables()
