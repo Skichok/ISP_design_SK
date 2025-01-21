@@ -74,8 +74,27 @@ def add_event(user_id, day, time, event_name, notification_status=True):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    # Добавление события в нужный день
-    event = f'{time} - {event_name} - Notification: {notification_status}'
+    # Проверяем существование таблицы для пользователя
+    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='user_{user_id}'")
+    if not cursor.fetchone():
+        print(f"Table for user {user_id} does not exist.")
+        conn.close()
+        return
+
+    # Получаем текущее значение для указанного дня
+    cursor.execute(f"SELECT {day} FROM user_{user_id} WHERE id = (SELECT MAX(id) FROM user_{user_id})")
+    current_schedule = cursor.fetchone()
+
+    if current_schedule and current_schedule[0]:
+        events = current_schedule[0].split(', ')
+        for event in events:
+            if event.startswith(time):
+                print(f"You have {event.split(' - ')[1]} at this time! Delete or move it first.")
+                conn.close()
+                return
+
+    # Добавляем событие, если конфликта нет
+    event = f"{time} - {event_name} - Notification: {notification_status}"
     cursor.execute(f'''
     UPDATE user_{user_id}
     SET {day} = COALESCE({day}, '') || ? || ', '
@@ -84,23 +103,7 @@ def add_event(user_id, day, time, event_name, notification_status=True):
 
     conn.commit()
     conn.close()
-
-
-# Функция для удаления события
-def remove_event(user_id, day, time, event_name):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    # Удаление события из таблицы
-    cursor.execute(f'''
-    UPDATE user_{user_id}
-    SET {day} = REPLACE({day}, ? || ', ', '')
-    WHERE id = (SELECT MAX(id) FROM user_{user_id}) AND {day} LIKE ?
-    ''', (f'{time} - {event_name}', f'%{time} - {event_name}%'))
-
-    conn.commit()
-    conn.close()
-
+    print(f"Event '{event_name}' added successfully for {day} at {time}.")
 
 def list_user_tables():
     conn = sqlite3.connect(db_path)
@@ -143,7 +146,8 @@ def view_user_table(user_id):
 
 
 # Функция для создания графика статистики запланированных событий по дням недели
-def stats(user_id, day="ALL"):
+def stats(user_id, day="ALL", theme="white"):
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")  # stating unique timestamp
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -176,7 +180,20 @@ def stats(user_id, day="ALL"):
 
     # Рисование графика
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.bar(events_count.keys(), events_count.values(), color='skyblue')
+
+    if theme == "black":
+        ax.set_facecolor("black")
+        fig.patch.set_facecolor("black")
+        ax.tick_params(colors="white")
+        ax.spines[:].set_color("white")
+        ax.xaxis.label.set_color("white")
+        ax.yaxis.label.set_color("white")
+        ax.title.set_color("white")
+        bar_color = "lightblue"
+    else:
+        bar_color = "skyblue"
+
+    ax.bar(events_count.keys(), events_count.values(), color=bar_color)
     ax.set_title(f"Number of Events Scheduled for User {user_id}")
     ax.set_xlabel("Days")
     ax.set_ylabel("Number of Events")
@@ -184,18 +201,22 @@ def stats(user_id, day="ALL"):
     # Сохранение графика
     timestamp = row[2]
     username = row[1]
-    graph_filename = f"{pic_path}/{username}_{user_id}_{timestamp}_stats.png"
+    graph_filename = f"{pic_path}/{username}_{user_id}_{timestamp}_{unique_timestamp}_stats.png"
     plt.savefig(graph_filename, bbox_inches='tight', pad_inches=0.1)
     plt.close()
 
     conn.close()
 
+
 # Пример использования:
 new_table('user1', 12345)
 add_event(12345, 'monday', '08:00', 'Wake up', True)
 add_event(12345, 'monday', '18:00', 'Dinner', True)
-stats(12345, 'ALL')  # Рисует график для всех дней
-#stats(12345, 'monday')  # Рисует график для понедельника
+add_event(12345, 'monday', '20:00', 'TV Show', True)
+add_event(12345, 'tuesday', '08:00', 'Wake up', True)
+stats(12345, 'ALL', "black")  # Рисует график для всех дней
+stats(12345, 'monday')  # Рисует график для понедельника
 list_user_tables()
 view_user_table(12345)
-remove_table(12345)
+
+#remove_table(12345)
