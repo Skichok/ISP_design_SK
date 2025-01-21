@@ -59,13 +59,15 @@ def graph_stats(stats_dict, theme="light", language="en", pic_path="stats_chart.
     if theme == "light":
         bg_color = "white"
         bar_color = "black"
+        edge_color = "black"
     else:  # dark theme
         bg_color = "black"
         bar_color = "white"
+        edge_color = "white"
 
     # Create the plot
     plt.figure(figsize=(10, 6))
-    plt.bar(labels, values, color=bar_color)
+    bars = plt.bar(labels, values, color=bar_color, edgecolor=edge_color)  # Set edge color for bars
 
     # Customize appearance
     plt.gca().set_facecolor(bg_color)  # Background color
