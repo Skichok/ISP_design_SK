@@ -446,31 +446,31 @@ async def change_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             print(f"Logs added to {log_file_name}.")
 
 async def add_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+    pass #adds single event
 
 async def add_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+    pass #adds recurring event
 
 async def delete_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+    pass #deletes single event
 
 async def delete_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+    pass #deletes recurring event
 
 async def get_user_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+    pass #drawing user plan as a table and sends back to user
 
 async def change_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+    pass #change time/name/notify_before for recurring event
 
 async def change_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+    pass #change time/name/notify_before for recurring event
 
 async def user_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+    pass #sends excel file of table and log file
 
 async def ai_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+    pass #uses gemini to help user to create his own time table on week (including recurring events)
 
 #app = ApplicationBuilder().token("7332049578:AAE5V5jZbLgfPXiLzJoyqZ8cXViNmi3Y0Sk").build() #Connecting to the bot using token
 
