@@ -387,7 +387,14 @@ async def theme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     new_theme = "dark" if current_theme == "light" else "light"
     db.switch_theme(user_id=user_id, theme=new_theme)
 
-    await update.message.reply_text(f"Theme changed from {current_theme} to {new_theme}")
+    theme_response = {
+        "en": f"Theme changed from {current_theme} to {new_theme}!",
+        "fr": f"Thème changé de {current_theme} à {new_theme}!"
+    }
+
+    await update.message.reply_text(theme_response.get(language, theme_response["en"]))
+
+#    await update.message.reply_text(f"Theme changed from {current_theme} to {new_theme}")
 
     if os.path.exists(log_file_name):
         with open(log_file_name, 'a', encoding='utf-8') as log_file:
