@@ -445,6 +445,32 @@ async def change_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     f"[{current_time}] {user_id}: /language [en -> fr]")  # Logging if there is no such file
             print(f"Logs added to {log_file_name}.")
 
+async def add_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass
+
+async def add_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass
+
+async def delete_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass
+
+async def delete_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass
+
+async def get_user_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass
+
+async def change_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass
+
+async def change_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass
+
+async def user_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass
+
+async def ai_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass
 
 #app = ApplicationBuilder().token("7332049578:AAE5V5jZbLgfPXiLzJoyqZ8cXViNmi3Y0Sk").build() #Connecting to the bot using token
 
@@ -473,6 +499,24 @@ app.add_handler(CommandHandler("stats", stats))
 app.add_handler(CommandHandler("theme", theme))
 
 app.add_handler(CommandHandler("language", change_language))
+
+app.add_handler(CommandHandler("adds", add_single_event))
+
+app.add_handler(CommandHandler("deletes", delete_single_event))
+
+app.add_handler(CommandHandler("deleter", delete_recurring_event))
+
+app.add_handler(CommandHandler("addr", add_recurring_event))
+
+app.add_handler(CommandHandler("mytables", get_user_plan))
+
+app.add_handler(CommandHandler("changes", change_single_event))
+
+app.add_handler(CommandHandler("changer", change_recurring_event))
+
+app.add_handler(CommandHandler("statx", user_data))
+
+app.add_handler(CommandHandler("aihelp", ai_help))
 
 app.run_polling()
 
