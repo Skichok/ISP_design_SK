@@ -7,7 +7,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from PIL import Image, ImageDraw
 import io
 import os
-from datetime import datetime #for datestamp
+from datetime import datetime, timedelta #for datestamp
 import qrcode #to create qrcode
 import matplotlib.pyplot as plt #to create graphs
 import numpy as np #to create graphs
@@ -19,6 +19,8 @@ from icrawler.builtin import GoogleImageCrawler #to parse photoes
 from math import floor
 #import sqlite3
 from USERS_DATA_DB_WORK_FILE import CalendarBotDB
+import openpyxl
+from openpyxl import Workbook
 
 db = CalendarBotDB()
 ADMIN_USER_ID = 1130761632  # ID of telegram account
@@ -85,6 +87,76 @@ def graph_stats(stats_dict, theme="light", language="en", pic_path="stats_chart.
     plt.close()
     return
 
+def shift_events_to_excel(data1, data2, tablename, language="en"):
+    # Ensure the data is valid and both arrays exist
+    if not data1 and not data2:
+        if language == "fr":
+            print("Les deux tableaux de données sont vides.")
+        else:
+            print("Both data arrays are empty.")
+        return
+
+    # Combine both data arrays
+    all_events = data1 + data2
+
+    # Create a new Excel file
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Schedule"
+
+    # Column headers
+    headers = ["Time"] + [(datetime.now() + timedelta(days=i)).strftime("%d.%m.%y") for i in range(14)]
+    ws.append(headers)
+
+    # Sort events by time
+    all_events.sort(key=lambda x: x[2])
+
+    # Create rows based on the event times
+    time_rows = {}
+    for event in all_events:
+        if len(event) == 6:
+            event_time = event[2]
+        elif len(event) == 5:
+            event_datetime = datetime.strptime(event[1], "%H:%M:%S %d.%m.%y")
+            if event_datetime.date() <= datetime.now().date():
+                continue
+            event_time = event_datetime.strftime("%H:%M:%S")
+        else:
+            continue
+
+        if event_time not in time_rows:
+            time_rows[event_time] = ["" for _ in range(14)]
+
+    # Fill events into rows
+    for event in all_events:
+        if len(event) == 6:
+            event_day_offset = event[1] - 2  # Day of the week (2=Monday)
+            event_time = event[2]
+            event_name = event[3]
+        elif len(event) == 5:
+            event_datetime = datetime.strptime(event[1], "%H:%M:%S %d.%m.%y")
+            event_day_offset = (event_datetime - datetime.now()).days
+            if event_datetime.date() <= datetime.now().date():
+                continue
+            event_time = event_datetime.strftime("%H:%M:%S")
+            event_name = event[2]
+        else:
+            continue
+
+        if 0 <= event_day_offset < 14:
+            time_rows[event_time][event_day_offset] = event_name
+
+    # Write rows to Excel
+    for time, events in sorted(time_rows.items()):
+        ws.append([time] + events)
+
+    # Save the file
+    file_path = f"./User_data/tables/{tablename}.xlsx"
+    wb.save(file_path)
+    if language == "fr":
+        print(f"Fichier enregistré avec succès à l'emplacement : {file_path}")
+    else:
+        print(f"File successfully saved at: {file_path}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
@@ -466,8 +538,50 @@ async def change_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def change_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pass #change time/name/notify_before for recurring event
 
-async def user_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass #sends excel file of table and log file
+async def user_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: #sends excel file of table and log file
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/tables/table_{user_id}_{unique_timestamp}.xlsx"
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id=user_id)
+    language = db.language(user_id=user_id)
+    file_name = f"User_data/{user_id}.txt"
+
+
+    if os.path.exists(file_name):
+        # If file exists, append the new numbers to a new line
+        with open(file_name, 'a') as file:
+            file.write(f"\n[{current_time}] {user_id}: /statx")
+        print(f"Logs added to {file_name}.")
+    else:
+        # If file doesn't exist, create the file and write the numbers
+        with open(file_name, 'w') as file:
+            file.write(f"[{current_time}] {user_id}: /statx")
+        print(f"File {file_name} created and logs saved.")
+
+    print(db.get_user_events_recurring(user_id=user_id), db.get_user_events_single(user_id=user_id))
+    shift_events_to_excel(data1=db.get_user_events_recurring(user_id=user_id), data2=db.get_user_events_single(user_id=user_id), tablename=f"table_{user_id}_{unique_timestamp}", language=language)
+    if not os.path.exists(file_path):
+        if language == "en":
+            await update.message.reply_text(f"You have not created a schedule yet. Please create one.")
+        else:
+            await update.message.reply_text(f"Vous n'avez pas encore créé de planning. Veuillez en créer un.")
+    else:
+        if language == "en":
+            await update.message.reply_text(f"Here is your 2 week schedule in excel spreadsheets:")
+        else:
+            await update.message.reply_text(f"Voici votre programme de 2 semaines dans des feuilles de calcul Excel:")
+        await context.bot.send_document(chat_id=update.effective_chat.id, document=open(file_path, 'rb'))
+
+    if language == "en":
+        await update.message.reply_text(f"Here are your logs for the entire time you've been using the bot:")
+    else:
+        await update.message.reply_text(f"Voici vos journaux pendant toute la durée de votre utilisation du bot:")
+    await context.bot.send_document(chat_id=update.effective_chat.id, document=open(f"./User_data/{user_id}.txt"))
+
 
 async def ai_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pass #uses gemini to help user to create his own time table on week (including recurring events)
