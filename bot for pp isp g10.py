@@ -254,8 +254,8 @@ async def list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         print(f"File {file_name} created and logs saved.")
 
     list_msg = {
-        "en": "Available commands:\n/start - start the bot\n/hello - greet the bot\n/language [en/fr] - change language\n/theme [light/dark] - change theme\nqrcode <prompt> - generate qr code for prompt\n/stats - get a recurring plans schedule for the week\n/feedback <feedback text> - sends feedback to the developers\n(Admin functions: /ping, /getusers)",
-        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\nqrcode <prompt> - générer un code qr pour l'invite\n/stats - obtenez un calendrier de plans récurrents pour la semaine\n/feedback <texte du feedback> - prend en compte les commentaires puis le développeur\n(Fonctions d'administration : /ping, /getusers)"
+        "en": "Available commands:\n/start - start the bot\n/hello - greet the bot\n/language [en/fr] - change language\n/theme [light/dark] - change theme\n/qrcode <prompt> - generate qr code for prompt\n/stats - get a graph of the number of recurring events per day\n/statx - get logs and schedule for 2 weeks in excel format\n/feedback <feedback text> - sends feedback to the developers\n(Admin functions: /ping, /getusers)",
+        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\n/qrcode <prompt> - générer un code qr pour l'invite\n/stats - obtenir un graphique du nombre d'événements récurrents par jour\n/statx - Obtenez les journaux et le calendrier pour 2 semaines au format Excel\n/feedback <texte du feedback> - prend en compte les commentaires puis le développeur\n(Fonctions d'administration : /ping, /getusers)"
     }
 
     await update.message.reply_text(list_msg.get(language, list_msg["en"]))
