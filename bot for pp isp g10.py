@@ -600,6 +600,13 @@ async def add_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if check_stamp("single", stamp=stamp) == True and check_duration("single", duration=duration) == True and tmp == True and check_notify_before("single", notify_before) == True:
         if is_single_event_unique(user_id=user_id, stamp=stamp) == True:
             db.add_single_event(user_id=user_id, event_timestamp=stamp, description=description, duration_minutes=description, notify_before_minutes=notify_before)
+            if language == "en":
+                await update.message.reply_text(
+                    f"Successfully added event {description} on {stamp}")
+            else:
+                await update.message.reply_text(
+                    f"L'événement {description} a été ajouté avec succès pour l'heure {stamp}")
+
         else:
             if language == "en":
                 await update.message.reply_text(f"Sorry, it looks like you already have something in that timestamp, please delete or change it first")
