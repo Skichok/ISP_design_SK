@@ -283,27 +283,15 @@ if __name__ == "__main__":
 
     # Fetching user events
 
-    db.add_single_event(
-     user_id=1130761632,
-     event_timestamp="11:00:00 01.02.25",
-     description="Doctor",
-     duration_minutes=30,
-     notify_before_minutes=10
-     )
+    #db.add_single_event(
+    #user_id=1130761632,
+    #event_timestamp="11:00:00 01.02.25",
+    #description="Doctor",
+    #duration_minutes=30,
+    #notify_before_minutes=10
+    #)
 
-    events = db.get_user_events_single(user_id=1)
-    print(events)
 
-    # Changing theme to light
-    db.switch_theme(user_id=1, theme="light")
 
-    # Changing language to French
-    db.change_language(user_id=1, language="fr")
-
-    # Changing streak status
-    db.switch_streak(user_id=1, streak=False)
-
-    print(db.get_user(user_id=3456))
-
-    # Closing the database
+# Closing the database
     db.close()

@@ -25,7 +25,47 @@ from openpyxl import Workbook
 db = CalendarBotDB()
 ADMIN_USER_ID = 1130761632  # ID of telegram account
 ADMIN_USERNAME = "ne_sprashival" # Username of telegram account
-def get_language(user_id):
+
+def check_stamp(type: str, stamp: str) -> bool:
+    try:
+        # Try to convert string in datetime object
+        dt = datetime.strptime(stamp, "%H:%M:%S %d.%m.%y")
+        # Check, if sucess
+        return True
+    except ValueError:
+        # If not, return false
+        return False
+
+def check_duration(type: str, duration: str) -> bool:
+    try:
+        # Try to convert the string to an integer (number of minutes)
+        minutes = int(duration)
+        # Check if the number is non-negative and does not exceed 14 days (20160 minutes)
+        return 0 <= minutes <= 20160
+    except ValueError:
+        # If conversion fails (e.g., the input is not a number), return False
+        return False
+
+def check_notify_before(type: str, notify_before: str) -> bool:
+    try:
+        # Try to convert the string to an integer (number of minutes)
+        minutes = int(notify_before)
+        # Check if the number is non-negative and does not exceed 15 minutes
+        return 0 <= minutes <= 15
+    except ValueError:
+        # If conversion fails (e.g., the input is not a number), return False
+        return False
+
+def is_single_event_unique(user_id: int, stamp) -> bool:
+    res = True
+    for item in db.get_user_events_single(user_id=user_id):
+        if stamp not in item:
+            continue
+        else:
+            res = False
+    return res
+
+def get_language(user_id) -> str:
     return db.language(user_id=user_id)
 
 
@@ -517,8 +557,67 @@ async def change_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     f"[{current_time}] {user_id}: /language [en -> fr]")  # Logging if there is no such file
             print(f"Logs added to {log_file_name}.")
 
-async def add_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass #adds single event
+async def add_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # adds single event
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/pic/stats_{user_id}_{unique_timestamp}.png"
+    file_name = f"User_data/{user_id}.txt" # log file
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id=user_id)
+    language = db.language(user_id=user_id)
+    user_inf = (update.message.text)[6:] # Сначала идет время ивента, в формате XX:XX:XX YY.YY.YY после чего продолжительность в минутах, одно число, оповестить за сколько минут, тоже одно число, после описание события
+    tmp = False
+    notify_before = 0
+    stamp = 0
+    duration = 0
+    description = " "
+    if len(user_inf.split(" ")) >= 5:
+        stamp = user_inf.split(" ")[0] + " " + user_inf.split(" ")[1]
+        duration = user_inf.split(" ")[2]
+        notify_before = user_inf.split(" ")[3]
+        description = " ".join(user_inf.split(" ")[4:])
+        tmp = True
+        print(stamp)
+        print(duration)
+        print(notify_before)
+        print(description)
+        print(user_inf)
+
+    if os.path.exists(file_name):
+        # If file exists, append the new numbers to a new line
+        with open(file_name, 'a') as file:
+            file.write(f"\n[{current_time}] {user_id}: /adds {user_inf}")
+        print(f"Logs added to {file_name}.")
+    else:
+        # If file doesn't exist, create the file and write the numbers
+        with open(file_name, 'w') as file:
+            file.write(f"[{current_time}] {user_id}: /adds {user_inf}")
+        print(f"File {file_name} created and logs saved.")
+
+    if check_stamp("single", stamp=stamp) == True and check_duration("single", duration=duration) == True and tmp == True and check_notify_before("single", notify_before) == True:
+        if is_single_event_unique(user_id=user_id, stamp=stamp) == True:
+            db.add_single_event(user_id=user_id, event_timestamp=stamp, description=description, duration_minutes=description, notify_before_minutes=notify_before)
+        else:
+            if language == "en":
+                await update.message.reply_text(f"Sorry, it looks like you already have something in that timestamp, please delete or change it first")
+            else:
+                await update.message.reply_text(f"Désolé, il semble que vous ayez déjà quelque chose dans cet horodatage, veuillez d'abord le supprimer ou le modifier.")
+
+    else:
+        if language == "en":
+            await update.message.reply_text(
+                f"Sorry, wrong input format. Input format: /adds HH:MM:SS DD.MM.YY N M DESCRIPTION\nWhere\nN - event time\nM - how long before the event to notify (<= 15 min)")
+        else:
+            await update.message.reply_text(
+                f"Désolé, le format d'entrée est incorrect. Format d'entrée : /adds HH:MM:SS JJ.MM.AA N M DESCRIPTION\nOù\nN - heure de l'événement\nM - combien de temps avant l'événement faut-il notifier (<= 15 min)")
+
+
+
+
+        # /adds
 
 async def add_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pass #adds recurring event
@@ -584,7 +683,7 @@ async def user_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def ai_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass #uses gemini to help user to create his own time table on week (including recurring events)
+    pass #uses DeepSeek locally to help user to create his own time table on week (including recurring events)
 
 #app = ApplicationBuilder().token("7332049578:AAE5V5jZbLgfPXiLzJoyqZ8cXViNmi3Y0Sk").build() #Connecting to the bot using token
 
