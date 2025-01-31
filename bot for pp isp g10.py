@@ -50,8 +50,8 @@ def check_notify_before(type: str, notify_before: str) -> bool:
     try:
         # Try to convert the string to an integer (number of minutes)
         minutes = int(notify_before)
-        # Check if the number is non-negative and does not exceed 15 minutes
-        return 0 <= minutes <= 15
+        # Check if the number is non-negative and does not exceed 60 minutes
+        return 0 <= minutes <= 60
     except ValueError:
         # If conversion fails (e.g., the input is not a number), return False
         return False
@@ -616,10 +616,10 @@ async def add_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     else:
         if language == "en":
             await update.message.reply_text(
-                f"Sorry, wrong input format. Input format: /adds HH:MM:SS DD.MM.YY N M DESCRIPTION\nWhere\nN - event time\nM - how long before the event to notify (<= 15 min)")
+                f"Sorry, wrong input format. Input format: /adds HH:MM:SS DD.MM.YY N M DESCRIPTION\nWhere\nN - event time\nM - how long before the event to notify (<= 60 min)")
         else:
             await update.message.reply_text(
-                f"Désolé, le format d'entrée est incorrect. Format d'entrée : /adds HH:MM:SS JJ.MM.AA N M DESCRIPTION\nOù\nN - heure de l'événement\nM - combien de temps avant l'événement faut-il notifier (<= 15 min)")
+                f"Désolé, le format d'entrée est incorrect. Format d'entrée : /adds HH:MM:SS JJ.MM.AA N M DESCRIPTION\nOù\nN - heure de l'événement\nM - combien de temps avant l'événement faut-il notifier (<= 60 min)")
 
 
 
