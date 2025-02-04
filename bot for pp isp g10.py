@@ -26,6 +26,33 @@ db = CalendarBotDB()
 ADMIN_USER_ID = 1130761632  # ID of telegram account
 ADMIN_USERNAME = "ne_sprashival" # Username of telegram account
 
+
+def check_time(type: str, time: str) -> bool:
+    parts = time.split(":")
+    if len(parts) != 3:
+        return False
+
+    try:
+        Hours, Minutes, Seconds = map(int, parts)
+    except ValueError:
+        return False
+
+    if not (0 <= Hours <= 23 and 0 <= Minutes <= 59 and 0 <= Seconds <= 59):
+        return False
+
+    return True
+
+def check_day(type: str, day: str) -> bool:
+    try:
+        # Try to convert the string to an integer (number of minutes)
+        dayt = int(day)
+        # Check if the number is non-negative and does not exceed 14 days (20160 minutes)
+        return 1 <= dayt <= 7
+    except ValueError:
+        # If conversion fails (e.g., the input is not a number), return False
+        return False
+
+
 def check_stamp(type: str, stamp: str) -> bool:
     try:
         # Try to convert string in datetime object
@@ -64,6 +91,14 @@ def is_single_event_unique(user_id: int, stamp) -> bool:
         else:
             res = False
     return res
+
+def is_recurring_event_unique(user_id: int, day, time) -> bool:
+    res = True
+    for item in db.get_user_events_recurring(user_id=user_id):
+        if item[1] == day and time in item:
+            res = False
+        else:
+            continue
 
 def get_language(user_id) -> str:
     return db.language(user_id=user_id)
@@ -623,8 +658,73 @@ async def add_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         # /adds
 
-async def add_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass #adds recurring event
+async def add_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # 2 = monday
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/pic/stats_{user_id}_{unique_timestamp}.png"
+    file_name = f"User_data/{user_id}.txt"  # log file
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id=user_id)
+    language = db.language(user_id=user_id)
+    user_inf = (update.message.text)[
+               6:]  # Сначала идет время ивента, в формате XX:XX:XX YY.YY.YY после чего продолжительность в минутах, одно число, оповестить за сколько минут, тоже одно число, после описание события
+    tmp = False
+    notify_before = 0
+    day = 0
+    time = " "
+    duration = 0
+    description = " "
+    if len(user_inf.split(" ")) >= 5:
+        day = user_inf.split(" ")[0] # 1 = sunday, 2 = monday, 3 = tuesday, ..., 7 = saturday
+        time = user_inf.split(" ")[1]
+        duration = user_inf.split(" ")[2]
+        notify_before = user_inf.split(" ")[3]
+        description = " ".join(user_inf.split(" ")[4:])
+        tmp = True
+        print(day)
+        print(time)
+        print(duration)
+        print(notify_before)
+        print(description)
+        print(user_inf)
+
+    if os.path.exists(file_name):
+        # If file exists, append the new numbers to a new line
+        with open(file_name, 'a') as file:
+            file.write(f"\n[{current_time}] {user_id}: /addr {user_inf}")
+        print(f"Logs added to {file_name}.")
+    else:
+        # If file doesn't exist, create the file and write the numbers
+        with open(file_name, 'w') as file:
+            file.write(f"[{current_time}] {user_id}: /addr {user_inf}")
+        print(f"File {file_name} created and logs saved.")
+
+    if check_day(type="recurring", day=day) == True and check_time(type="recurring", time=time) and check_duration("recurring", duration=duration) == True and check_notify_before(type="recurring", notify_before=notify_before) == True:
+        if is_recurring_event_unique(user_id=user_id, day=day, time=time) == True:
+            db.add_recurring_event(user_id=user_id, day_of_week=day, event_time=time, description=description, duration_minutes=duration, notify_before_minutes=notify_before)
+            if language == "en":
+                await update.message.reply_text(
+                    f"Successfully added event {description} on {time}")
+            else:
+                await update.message.reply_text(
+                    f"L'événement {description} a été ajouté avec succès pour l'heure {time}")
+        else:
+            if language == "en":
+                await update.message.reply_text(f"Sorry, it looks like you already have something in that timestamp, please delete or change it first")
+            else:
+                await update.message.reply_text(f"Désolé, il semble que vous ayez déjà quelque chose dans cet horodatage, veuillez d'abord le supprimer ou le modifier.")
+    else:
+        if language == "en":
+            await update.message.reply_text(
+                f"Sorry, wrong input format. Input format: /addr DAY HH.MM.SS N M DESCRIPTION\nWhere\nDAY - number from 1 to 7 (1 = sunday, 2 = monday ...)\nN - event time\nM - how long before the event to notify (<= 60 min)")
+        else:
+            await update.message.reply_text(
+                f"Désolé, format d'entrée incorrect. Format attendu : /addr JOUR HH.MM.SS N M DESCRIPTION\nOù\nJOUR - numéro de 1 à 7 (1 = dimanche, 2 = lundi ...)\nN - durée de l'événement\nM - délai de notification avant l'événement (≤ 60 min)")
+
+# /addr - add recurring event
 
 async def delete_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # deletes single event
     user_id = update.effective_user.id
@@ -698,7 +798,7 @@ async def delete_recurring_event(update: Update, context: ContextTypes.DEFAULT_T
     pass #deletes recurring event
 
 async def get_user_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass # drawing user plan as a table and sends back to user
+    pass # drawing/showing as a previewable file user plan as a table and sends back to user
 
 async def change_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # change time/name/notify_before for recurring event
     user_id = update.effective_user.id
