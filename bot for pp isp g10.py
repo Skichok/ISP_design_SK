@@ -698,7 +698,7 @@ async def delete_recurring_event(update: Update, context: ContextTypes.DEFAULT_T
     pass #deletes recurring event
 
 async def get_user_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass #drawing user plan as a table and sends back to user
+    pass # drawing user plan as a table and sends back to user
 
 async def change_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # change time/name/notify_before for recurring event
     user_id = update.effective_user.id
@@ -821,8 +821,13 @@ async def user_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await context.bot.send_document(chat_id=update.effective_chat.id, document=open(f"./User_data/{user_id}.txt"))
 
 
-async def ai_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass #uses DeepSeek locally to help user to create his own time table on week (including recurring events)
+async def ai_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # last to do
+    pass # uses DeepSeek/Ollama locally to help user to create his own time table on week (including recurring events)
+
+
+async def check_streak(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass # shows to user his current streak of using bot
+
 
 #app = ApplicationBuilder().token("7332049578:AAE5V5jZbLgfPXiLzJoyqZ8cXViNmi3Y0Sk").build() #Connecting to the bot using token
 
