@@ -294,8 +294,8 @@ async def list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         print(f"File {file_name} created and logs saved.")
 
     list_msg = {
-        "en": "Available commands:\n/start - start the bot\n/hello - greet the bot\n/language [en/fr] - change language\n/theme [light/dark] - change theme\n/qrcode <prompt> - generate qr code for prompt\n/stats - get a graph of the number of recurring events per day\n/statx - get logs and schedule for 2 weeks in excel format\n/feedback <feedback text> - sends feedback to the developers\n(Admin functions: /ping, /getusers)",
-        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\n/qrcode <prompt> - générer un code qr pour l'invite\n/stats - obtenir un graphique du nombre d'événements récurrents par jour\n/statx - Obtenez les journaux et le calendrier pour 2 semaines au format Excel\n/feedback <texte du feedback> - prend en compte les commentaires puis le développeur\n(Fonctions d'administration : /ping, /getusers)"
+        "en": "Available commands:\n/start - start the bot\n/hello - greet the bot\n/language [en/fr] - change language\n/theme [light/dark] - change theme\n/adds <HH:MM:SS> <DD.MM.YY> <duration in minutes> <notify before minutes> <description> – add a new single event\n/deletes <HH:MM:SS> <DD.MM.YY> – remove an existing single event\n/changes <HH:MM:SS> <DD.MM.YY> <new duration in minutes> <new notify before minutes> <new description> – modify an existing event by providing its original time and date, then updating the details\n/stats - get a graph of the number of recurring events per day\n/statx - get logs and schedule for 2 weeks in excel format\n/feedback <feedback text> - sends feedback to the developers\n(Admin functions: /ping, /getusers)",
+        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\n/adds <HH:MM:SS> <DD.MM.YY> <durée en minutes> <notification avant en minutes> <description> – ajouter un nouvel événement\n/deletes <HH:MM:SS> <DD.MM.YY> – supprimer un événement existant\n/changes <HH:MM:SS> <DD.MM.YY> <nouvelle durée en minutes> <nouvelle notification avant en minutes> <nouvelle description> – Modifier un événement existant en indiquant son heure et sa date d'origine, puis en mettant à jour les détails\n/stats - obtenir un graphique du nombre d'événements récurrents par jour\n/statx - Obtenez les journaux et le calendrier pour 2 semaines au format Excel\n/feedback <texte du feedback> - prend en compte les commentaires puis le développeur\n(Fonctions d'administration : /ping, /getusers)"
     }
 
     await update.message.reply_text(list_msg.get(language, list_msg["en"]))
@@ -621,16 +621,78 @@ async def add_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await update.message.reply_text(
                 f"Désolé, le format d'entrée est incorrect. Format d'entrée : /adds HH:MM:SS JJ.MM.AA N M DESCRIPTION\nOù\nN - heure de l'événement\nM - combien de temps avant l'événement faut-il notifier (<= 60 min)")
 
-
-
-
         # /adds
 
 async def add_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pass #adds recurring event
 
-async def delete_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass #deletes single event
+async def delete_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # deletes single event
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/pic/stats_{user_id}_{unique_timestamp}.png"
+    file_name = f"User_data/{user_id}.txt"  # log file
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id=user_id)
+    language = db.language(user_id=user_id)
+    user_inf = (update.message.text)[
+               9:]  # Сначала идет время ивента, в формате XX:XX:XX YY.YY.YY после чего продолжительность в минутах, одно число, оповестить за сколько минут, тоже одно число, после описание события
+    tmp2 = False
+    notify_before = 0
+    stamp = 0
+    duration = 0
+    description = " "
+    if len(user_inf.split(" ")) >= 2:
+        stamp = user_inf.split(" ")[0] + " " + user_inf.split(" ")[1]
+        #duration = user_inf.split(" ")[2]
+        #notify_before = user_inf.split(" ")[3]
+        #description = " ".join(user_inf.split(" ")[4:])
+        tmp2 = True
+        print(stamp)
+        print(duration)
+        print(notify_before)
+        print(description)
+        print(user_inf)
+
+    if os.path.exists(file_name):
+        # If file exists, append the new numbers to a new line
+        with open(file_name, 'a') as file:
+            file.write(f"\n[{current_time}] {user_id}: /deletes {user_inf}")
+        print(f"Logs added to {file_name}.")
+    else:
+        # If file doesn't exist, create the file and write the numbers
+        with open(file_name, 'w') as file:
+            file.write(f"[{current_time}] {user_id}: /deletes {user_inf}")
+        print(f"File {file_name} created and logs saved.")
+
+    if check_stamp("single", stamp=stamp) == True and tmp2 == True:
+        if is_single_event_unique(user_id=user_id, stamp=stamp) == True:
+            if language == "en":
+                await update.message.reply_text(
+                    f"Sorry, it doesn't look like you have single event at {stamp}")
+            else:
+                await update.message.reply_text(
+                    f"Désolé, il semble que vous n'ayez aucun événement à {stamp}")
+
+        else:
+            db.delete_single_event(user_id=user_id, event_timestamp=stamp)
+            if language == "en":
+                await update.message.reply_text(
+                    f"Successfully deleted single event on {stamp}")
+            else:
+                await update.message.reply_text(
+                    f"Événement unique supprimé avec succès le {stamp}")
+
+    else:
+        if language == "en":
+            await update.message.reply_text(
+                f"Sorry, wrong input format. Input format: /deletes HH:MM:SS DD.MM.YY")
+        else:
+            await update.message.reply_text(
+                f"Désolé, le format d'entrée est incorrect. Format d'entrée : /deletes HH:MM:SS JJ.MM.AA")
+    # /deletes
 
 async def delete_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pass #deletes recurring event
@@ -638,8 +700,78 @@ async def delete_recurring_event(update: Update, context: ContextTypes.DEFAULT_T
 async def get_user_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pass #drawing user plan as a table and sends back to user
 
-async def change_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass #change time/name/notify_before for recurring event
+async def change_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # change time/name/notify_before for recurring event
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/pic/stats_{user_id}_{unique_timestamp}.png"
+    file_name = f"User_data/{user_id}.txt"  # log file
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id=user_id)
+    language = db.language(user_id=user_id)
+    user_inf = (update.message.text)[
+               9:]  # Сначала идет время ивента, в формате XX:XX:XX YY.YY.YY после чего продолжительность в минутах, одно число, оповестить за сколько минут, тоже одно число, после описание события
+    tmp = False
+    notify_before = 0
+    stamp = 0
+    duration = 0
+    description = " "
+    if len(user_inf.split(" ")) >= 5:
+        stamp = user_inf.split(" ")[0] + " " + user_inf.split(" ")[1]
+        duration = user_inf.split(" ")[2]
+        notify_before = user_inf.split(" ")[3]
+        description = " ".join(user_inf.split(" ")[4:])
+        tmp = True
+        print(stamp)
+        print(duration)
+        print(notify_before)
+        print(description)
+        print(user_inf)
+
+    if os.path.exists(file_name):
+        # If file exists, append the new numbers to a new line
+        with open(file_name, 'a') as file:
+            file.write(f"\n[{current_time}] {user_id}: /changes {user_inf}")
+        print(f"Logs added to {file_name}.")
+    else:
+        # If file doesn't exist, create the file and write the numbers
+        with open(file_name, 'w') as file:
+            file.write(f"[{current_time}] {user_id}: /changes {user_inf}")
+        print(f"File {file_name} created and logs saved.")
+
+    if check_stamp("single", stamp=stamp) == True and check_duration("single",
+                                                                     duration=duration) == True and tmp == True and check_notify_before(
+            "single", notify_before) == True:
+        if is_single_event_unique(user_id=user_id, stamp=stamp) == True:
+            if language == "en":
+                await update.message.reply_text(
+                    f"Sorry, it doesn't seems like you have any single events on these time, use this command to add it:\n\n/adds {stamp} {duration} {notify_before} {description}")
+            else:
+                await update.message.reply_text(
+                    f"Désolé, il ne semble pas que vous ayez un événement à ce moment-là. Utilisez cette commande pour l'ajouter :\n\n/adds {stamp} {duration} {notify_before} {description}")
+
+        else:
+            db.delete_single_event(user_id=user_id, event_timestamp=stamp)
+            db.add_single_event(user_id=user_id, event_timestamp=stamp, description=description, duration_minutes=description, notify_before_minutes=notify_before)
+            if language == "en":
+                await update.message.reply_text(
+                    f"Successfully changed event {description} on {stamp}")
+            else:
+                await update.message.reply_text(
+                    f"Événement {description} à {stamp} modifié avec succès")
+
+    else:
+        if language == "en":
+            await update.message.reply_text(
+                f"Sorry, wrong input format. Input format: /adds HH:MM:SS DD.MM.YY N M DESCRIPTION\nWhere\nN - event time\nM - how long before the event to notify (<= 60 min)")
+        else:
+            await update.message.reply_text(
+                f"Désolé, le format d'entrée est incorrect. Format d'entrée : /adds HH:MM:SS JJ.MM.AA N M DESCRIPTION\nOù\nN - heure de l'événement\nM - combien de temps avant l'événement faut-il notifier (<= 60 min)")
+
+
+# /changes
 
 async def change_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pass #change time/name/notify_before for recurring event
