@@ -338,7 +338,7 @@ async def list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     list_msg = {
         "en": "Available commands:\n/start - start the bot\n/hello - greet the bot\n/language [en/fr] - change language\n/theme [light/dark] - change theme\n/adds <HH:MM:SS> <DD.MM.YY> <duration in minutes> <notify before minutes> <description> – add a new single event\n/deletes <HH:MM:SS> <DD.MM.YY> – remove an existing single event\n/changes <HH:MM:SS> <DD.MM.YY> <new duration in minutes> <new notify before minutes> <new description> – modify an existing event by providing its original time and date, then updating the details\n/stats - get a graph of the number of recurring events per day\n/statx - get logs and schedule for 2 weeks in excel format\n/feedback <feedback text> - sends feedback to the developers\n(Admin functions: /ping, /getusers)",
-        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\n/adds <HH:MM:SS> <DD.MM.YY> <durée en minutes> <notification avant en minutes> <description> – ajouter un nouvel événement\n/deletes <HH:MM:SS> <DD.MM.YY> – supprimer un événement existant\n/changes <HH:MM:SS> <DD.MM.YY> <nouvelle durée en minutes> <nouvelle notification avant en minutes> <nouvelle description> – Modifier un événement existant en indiquant son heure et sa date d'origine, puis en mettant à jour les détails\n/stats - obtenir un graphique du nombre d'événements récurrents par jour\n/statx - Obtenez les journaux et le calendrier pour 2 semaines au format Excel\n/feedback <texte du feedback> - prend en compte les commentaires puis le développeur\n(Fonctions d'administration : /ping, /getusers)"
+        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\n/adds <HH:MM:SS> <DD.MM.YY> <durée en minutes> <notification avant en minutes> <description> – ajouter un nouvel événement\n/deletes <HH:MM:SS> <DD.MM.YY> – supprimer un événement existant\n/changes <HH:MM:SS> <DD.MM.YY> <nouvelle durée en minutes> <nouvelle notification avant en minutes> <nouvelle description> – Modifier un événement existant en indiquant son heure et sa date d'origine, puis en mettant à jour les détails\n/stats - obtenir un graphique du nombre d'événements récurrents par jour\n/statx - Obtenez les journaux et le calendrier pour 2 semaines au format Excel\n/feedback <texte du feedback> - envoyer les commentaires aux développeurs\n(Fonctions d'administration : /ping, /getusers)"
     }
 
     await update.message.reply_text(list_msg.get(language, list_msg["en"]))
@@ -544,7 +544,7 @@ async def theme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     theme_response = {
         "en": f"Theme changed from {current_theme} to {new_theme}!",
-        "fr": f"Thème changé de {current_theme} à {new_theme}!"
+        "fr": f"Thème a changé de {current_theme} à {new_theme}!"
     }
 
     await update.message.reply_text(theme_response.get(language, theme_response["en"]))
@@ -802,8 +802,75 @@ async def delete_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE
                 f"Désolé, le format d'entrée est incorrect. Format d'entrée : /deletes HH:MM:SS JJ.MM.AA")
     # /deletes
 
-async def delete_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass #deletes recurring event
+async def delete_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # 2 = monday
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/pic/stats_{user_id}_{unique_timestamp}.png"
+    file_name = f"User_data/{user_id}.txt"  # log file
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id=user_id)
+    language = db.language(user_id=user_id)
+    user_inf = (update.message.text)[
+               9:]  # Сначала идет время ивента, в формате XX:XX:XX YY.YY.YY после чего продолжительность в минутах, одно число, оповестить за сколько минут, тоже одно число, после описание события
+    tmp = False
+    notify_before = 0
+    day = 0
+    time = " "
+    duration = 0
+    description = " "
+    if len(user_inf.split(" ")) >= 5:
+        day = user_inf.split(" ")[0]  # 1 = sunday, 2 = monday, 3 = tuesday, ..., 7 = saturday
+        time = user_inf.split(" ")[1]
+        #duration = user_inf.split(" ")[2]
+        #notify_before = user_inf.split(" ")[3]
+        #description = " ".join(user_inf.split(" ")[4:])
+        tmp = True
+        print(day)
+        print(time)
+        print(duration)
+        print(notify_before)
+        print(description)
+        print(user_inf)
+
+    if os.path.exists(file_name):
+        # If file exists, append the new numbers to a new line
+        with open(file_name, 'a') as file:
+            file.write(f"\n[{current_time}] {user_id}: /addr {user_inf}")
+        print(f"Logs added to {file_name}.")
+    else:
+        # If file doesn't exist, create the file and write the numbers
+        with open(file_name, 'w') as file:
+            file.write(f"[{current_time}] {user_id}: /addr {user_inf}")
+        print(f"File {file_name} created and logs saved.")
+
+    if check_day(type="recurring", day=day) == True and check_time(type="recurring", time=time):
+        if is_recurring_event_unique(user_id=user_id, day=day, time=time) == False:
+            db.delete_recurring_event(user_id=user_id, day_of_week=day, event_time=time)
+            if language == "en":
+                await update.message.reply_text(
+                    f"Successfully deleted event {description} on {time}")
+            else:
+                await update.message.reply_text(
+                    f"L'événement {description} a été supprimé avec succès le {time}")
+        else:
+            if language == "en":
+                await update.message.reply_text(
+                    f"Sorry, it looks like you don't have anything in that timestamp, please delete or change it first")
+            else:
+                await update.message.reply_text(
+                    f"Désolé, il semble que vous n'ayez aucune chose dans cet horodatage, veuillez d'abord le supprimer ou le modifier.")
+    else:
+        if language == "en":
+            await update.message.reply_text(
+                f"Sorry, wrong input format. Input format: /deleter DAY HH.MM.SS\nWhere\nDAY - number from 1 to 7 (1 = sunday, 2 = monday ...)")
+        else:
+            await update.message.reply_text(
+                f"Désolé, format d'entrée incorrect. Format attendu : /deleter JOUR HH.MM.SS\nOù\nJOUR - numéro de 1 à 7 (1 = dimanche, 2 = lundi ...)")
+
+    #deletes recurring event
 
 async def get_user_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pass # drawing/showing as a previewable file user plan as a table and sends back to user
@@ -919,13 +986,13 @@ async def user_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if language == "en":
             await update.message.reply_text(f"Here is your 2 week schedule in excel spreadsheets:")
         else:
-            await update.message.reply_text(f"Voici votre programme de 2 semaines dans des feuilles de calcul Excel:")
+            await update.message.reply_text(f"Voici votre programme de 2 semaines sur Excel:")
         await context.bot.send_document(chat_id=update.effective_chat.id, document=open(file_path, 'rb'))
 
     if language == "en":
         await update.message.reply_text(f"Here are your logs for the entire time you've been using the bot:")
     else:
-        await update.message.reply_text(f"Voici vos journaux pendant toute la durée de votre utilisation du bot:")
+        await update.message.reply_text(f"Voici votre journal d'activité pendant la durée de votre utilisation du bot:")
     await context.bot.send_document(chat_id=update.effective_chat.id, document=open(f"./User_data/{user_id}.txt"))
 
 
