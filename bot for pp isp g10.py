@@ -94,11 +94,19 @@ def is_single_event_unique(user_id: int, stamp) -> bool:
 
 def is_recurring_event_unique(user_id: int, day, time) -> bool:
     res = True
+    print(user_id, day, time)
+    print(type(day), type(time))
+    day = int(day)
     for item in db.get_user_events_recurring(user_id=user_id):
-        if item[1] == day and time in item:
+        print(item)
+        print(item[1], item[2])
+        print(type(item[1]), type(item[2]))
+        if item[1] == day and item[2] == time:
             res = False
         else:
             continue
+    print(res)
+    return res
 
 def get_language(user_id) -> str:
     return db.language(user_id=user_id)
