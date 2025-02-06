@@ -1233,11 +1233,11 @@ async def user_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def ai_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # last to do
-    pass # uses DeepSeek/Ollama locally to help user to create his own time table on week (including recurring events)
+    pass # uses DeepSeek/Ollama locally to help user to create his own time table on week (including recurring events) (Идея: пользоваетель пишет что ему надо сделать, не указывая данные в формате, после чего посылается промпт в нейронку, она анализирует и возвращает список комманд, который мы отсылаем пользователю на проверку, если все верно то он поочередно вводит команды)
 
 
 async def check_streak(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass # shows to user his current streak of using bot
+    pass # shows to user his current streak of using bot (Идея: стрик n будет достигаться при планировании n дней подряд, начиная с некоторой даты, неважно повторяющихся или еденичных ивентов)
 
 
 #app = ApplicationBuilder().token("7332049578:AAE5V5jZbLgfPXiLzJoyqZ8cXViNmi3Y0Sk").build() #Connecting to the bot using token
@@ -1260,31 +1260,33 @@ app.add_handler(CommandHandler("feedback", feedback)) #Creating handler for comm
 
 #app.add_handler(CommandHandler("facedetect", facedetect)) #Creating handler for command with function
 
-app.add_handler(CommandHandler("getusers", admin_check))
+app.add_handler(CommandHandler("getusers", admin_check)) #Creating handler for admin-function
 
-app.add_handler(CommandHandler("stats", stats))
+app.add_handler(CommandHandler("stats", stats)) #Creating handler for statistic graph function
 
-app.add_handler(CommandHandler("theme", theme))
+app.add_handler(CommandHandler("theme", theme)) #Creating handler for theme changing
 
-app.add_handler(CommandHandler("language", change_language))
+app.add_handler(CommandHandler("language", change_language)) #Creating handler for language changing
 
-app.add_handler(CommandHandler("adds", add_single_event))
+app.add_handler(CommandHandler("adds", add_single_event)) #Creating handler for function to add single event
 
-app.add_handler(CommandHandler("deletes", delete_single_event))
+app.add_handler(CommandHandler("deletes", delete_single_event)) #Creating handler for function to delete single event
 
-app.add_handler(CommandHandler("deleter", delete_recurring_event))
+app.add_handler(CommandHandler("deleter", delete_recurring_event)) #Creating handler for function to delete recurring event
 
-app.add_handler(CommandHandler("addr", add_recurring_event))
+app.add_handler(CommandHandler("addr", add_recurring_event)) #Creating handler for function to add recurring event
 
-app.add_handler(CommandHandler("mytables", get_user_plan))
+app.add_handler(CommandHandler("mytables", get_user_plan)) #Creating handler for function to get plan for next 2 weeks as image
 
-app.add_handler(CommandHandler("changes", change_single_event))
+app.add_handler(CommandHandler("changes", change_single_event)) #Creating handler for function to change single event
 
-app.add_handler(CommandHandler("changer", change_recurring_event))
+app.add_handler(CommandHandler("changer", change_recurring_event)) #Creating handler for function to change recurring event
 
-app.add_handler(CommandHandler("statx", user_data))
+app.add_handler(CommandHandler("statx", user_data)) #Creating handler for function to get plan for next 2 weeks as Excel file and logs
 
-app.add_handler(CommandHandler("aihelp", ai_help))
+app.add_handler(CommandHandler("aihelp", ai_help)) #Creating handler for function to work with AI
+
+app.add_handler(CommandHandler("streak", check_streak)) #Creating handler for function to check streak of using bot for
 
 app.run_polling()
 
