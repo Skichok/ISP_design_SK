@@ -3,6 +3,8 @@ import telegram
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
+from telegram.constants import ParseMode  # For message formatting
+import logging  # For debugging and logging errors
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from PIL import Image, ImageDraw
 import io
@@ -21,6 +23,9 @@ from math import floor
 from USERS_DATA_DB_WORK_FILE import CalendarBotDB
 import openpyxl
 from openpyxl import Workbook
+import pandas as pd
+import asyncio  # To ensure proper async execution
+
 
 db = CalendarBotDB()
 ADMIN_USER_ID = 1130761632  # ID of telegram account
@@ -241,6 +246,67 @@ def shift_events_to_excel(data1, data2, tablename, language="en"):
     else:
         print(f"File successfully saved at: {file_path}")
 
+import os
+from datetime import datetime, timedelta
+from openpyxl import Workbook
+from telegram import Update
+from telegram.ext import ContextTypes
+import matplotlib.pyplot as plt
+import pandas as pd
+
+def shift_events(data1, data2, tablename, language="en"):
+    if not data1 and not data2:
+        print("Both data arrays are empty." if language == "en" else "Les deux tableaux de données sont vides.")
+        return
+
+    all_events = data1 + data2
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Schedule"
+    headers = ["Time"] + [(datetime.now() + timedelta(days=i)).strftime("%d.%m.%y") for i in range(14)]
+    ws.append(headers)
+    all_events.sort(key=lambda x: x[2])
+    time_rows = {}
+
+    for event in all_events:
+        if len(event) == 6:
+            event_time = event[2]
+        elif len(event) == 5:
+            event_datetime = datetime.strptime(event[1], "%H:%M:%S %d.%m.%y")
+            if event_datetime.date() <= datetime.now().date():
+                continue
+            event_time = event_datetime.strftime("%H:%M:%S")
+        else:
+            continue
+
+        if event_time not in time_rows:
+            time_rows[event_time] = ["" for _ in range(14)]
+
+    for event in all_events:
+        if len(event) == 6:
+            event_day_offset = event[1] - 2
+            event_time = event[2]
+            event_name = event[3][:5]
+        elif len(event) == 5:
+            event_datetime = datetime.strptime(event[1], "%H:%M:%S %d.%m.%y")
+            event_day_offset = (event_datetime - datetime.now()).days
+            if event_datetime.date() <= datetime.now().date():
+                continue
+            event_time = event_datetime.strftime("%H:%M:%S")
+            event_name = event[2][:5]
+        else:
+            continue
+
+        if 0 <= event_day_offset < 14:
+            time_rows[event_time][event_day_offset] = event_name
+
+    for time, events in sorted(time_rows.items()):
+        ws.append([time] + events)
+
+    file_path = f"./User_data/tables/{tablename}.xlsx"
+    wb.save(file_path)
+    print(f"File successfully saved at: {file_path}" if language == "en" else f"Fichier enregistré avec succès à l'emplacement : {file_path}")
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     language = get_language(user_id)
@@ -337,8 +403,8 @@ async def list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         print(f"File {file_name} created and logs saved.")
 
     list_msg = {
-        "en": "Available commands:\n/start - start the bot\n/hello - greet the bot\n/language [en/fr] - change language\n/theme [light/dark] - change theme\n/adds <HH:MM:SS> <DD.MM.YY> <duration in minutes> <notify before minutes> <description> – add a new single event\n/deletes <HH:MM:SS> <DD.MM.YY> – remove an existing single event\n/changes <HH:MM:SS> <DD.MM.YY> <new duration in minutes> <new notify before minutes> <new description> – modify an existing event by providing its original time and date, then updating the details\n/addr <number-of-day> <HH:MM:SS> <duration in minutes> <notify before minutes> <description> - add a new recurring event\n/deleter <number-of-day> <HH:MM:SS> - delete recurring event\n/changer <number-of-day> <HH:MM:SS> <new duration in minutes> <new notify before minutes> <new description> - change recurring event\n/stats - get a graph of the number of recurring events per day\n/statx - get logs and schedule for 2 weeks in excel format\n/feedback <feedback text> - sends feedback to the developers\n(Admin functions: /ping, /getusers)",
-        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\n/adds <HH:MM:SS> <DD.MM.YY> <durée en minutes> <notification avant en minutes> <description> – ajouter un nouvel événement\n/deletes <HH:MM:SS> <DD.MM.YY> – supprimer un événement existant\n/changes <HH:MM:SS> <DD.MM.YY> <nouvelle durée en minutes> <nouvelle notification avant en minutes> <nouvelle description> – Modifier un événement existant en indiquant son heure et sa date d'origine, puis en mettant à jour les détails\n/addr <numéro de jour> <HH:MM:SS> <durée en minutes> <notifier avant minutes> <description> - ajouter un nouvel événement récurrent\n/deleter <nombre-de-jours> <HH:MM:SS> - supprimer l'événement récurrent\n/changer <numéro de jour> <HH:MM:SS> <nouvelle durée en minutes> <nouvelle notification avant minutes> <nouvelle description> - modifier l'événement récurrent\n/stats - obtenir un graphique du nombre d'événements récurrents par jour\n/statx - Obtenez les journaux et le calendrier pour 2 semaines au format Excel\n/feedback <texte du feedback> - envoyer les commentaires aux développeurs\n(Fonctions d'administration : /ping, /getusers)"
+        "en": "Available commands:\n/start - start the bot\n/hello - greet the bot\n/language [en/fr] - change language\n/theme [light/dark] - change theme\n/adds <HH:MM:SS> <DD.MM.YY> <duration in minutes> <notify before minutes> <description> – add a new single event\n/deletes <HH:MM:SS> <DD.MM.YY> – remove an existing single event\n/changes <HH:MM:SS> <DD.MM.YY> <new duration in minutes> <new notify before minutes> <new description> – modify an existing event by providing its original time and date, then updating the details\n/addr <number-of-day> <HH:MM:SS> <duration in minutes> <notify before minutes> <description> - add a new recurring event\n/deleter <number-of-day> <HH:MM:SS> - delete recurring event\n/changer <number-of-day> <HH:MM:SS> <new duration in minutes> <new notify before minutes> <new description> - change recurring event\n/mytables - get image of your plan for next two weeks\n/stats - get a graph of the number of recurring events per day\n/statx - get logs and schedule for 2 weeks in excel format\n/feedback <feedback text> - sends feedback to the developers\n(Admin functions: /ping, /getusers)",
+        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\n/adds <HH:MM:SS> <DD.MM.YY> <durée en minutes> <notification avant en minutes> <description> – ajouter un nouvel événement\n/deletes <HH:MM:SS> <DD.MM.YY> – supprimer un événement existant\n/changes <HH:MM:SS> <DD.MM.YY> <nouvelle durée en minutes> <nouvelle notification avant en minutes> <nouvelle description> – Modifier un événement existant en indiquant son heure et sa date d'origine, puis en mettant à jour les détails\n/addr <numéro de jour> <HH:MM:SS> <durée en minutes> <notifier avant minutes> <description> - ajouter un nouvel événement récurrent\n/deleter <nombre-de-jours> <HH:MM:SS> - supprimer l'événement récurrent\n/changer <numéro de jour> <HH:MM:SS> <nouvelle durée en minutes> <nouvelle notification avant minutes> <nouvelle description> - modifier l'événement récurrent\n/mytables - obtenez une image de votre plan pour les deux prochaines semaines\n/stats - obtenir un graphique du nombre d'événements récurrents par jour\n/statx - Obtenez les journaux et le calendrier pour 2 semaines au format Excel\n/feedback <texte du feedback> - envoyer les commentaires aux développeurs\n(Fonctions d'administration : /ping, /getusers)"
     }
 
     await update.message.reply_text(list_msg.get(language, list_msg["en"]))
@@ -872,8 +938,110 @@ async def delete_recurring_event(update: Update, context: ContextTypes.DEFAULT_T
 
     #deletes recurring event
 
-async def get_user_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass # drawing/showing as a previewable file user plan as a table and sends back to user
+async def get_user_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # drawing/showing as a previewable file user plan as a table and sends back to user
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/pic/stats_{user_id}_{unique_timestamp}.png"
+    file_name = f"User_data/{user_id}.txt"  # log file
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id=user_id)
+    language = db.language(user_id=user_id)
+    recurring_events = db.get_user_events_recurring(user_id=user_id)
+    single_events = db.get_user_events_single(user_id=user_id)
+    all_events = recurring_events + single_events
+
+    if os.path.exists(file_name):
+        # If file exists, append the new numbers to a new line
+        with open(file_name, 'a') as file:
+            file.write(f"\n[{current_time}] {user_id}: /mytables")
+        print(f"Logs added to {file_name}.")
+    else:
+        # If file doesn't exist, create the file and write the numbers
+        with open(file_name, 'w') as file:
+            file.write(f"[{current_time}] {user_id}: /mytables")
+        print(f"File {file_name} created and logs saved.")
+
+    if not all_events:
+        msg = "You have not created a schedule yet. Please create one." if language == "en" else "Vous n'avez pas encore créé de planning. Veuillez en créer un."
+        await update.message.reply_text(msg)
+        return
+
+    dates = [(datetime.now() + timedelta(days=i)).strftime("%d.%m.%y") for i in range(14)]
+    # Фильтруем time_slots: только корректное время формата HH:MM:SS
+    time_slots = sorted(
+        set(event[2] for event in all_events if len(event) >= 5 and isinstance(event[2], str) and ":" in event[2]))
+
+    # Создаем пустую таблицу с датами как колонками
+    data = {date: ["" for _ in time_slots] for date in dates}
+
+    for event in all_events:
+        if len(event) == 6:
+            event_day_offset = event[1] - 2
+            event_time = event[2]
+            event_name = event[3][:5]
+        elif len(event) == 5:
+            event_datetime = datetime.strptime(event[1], "%H:%M:%S %d.%m.%y")
+            event_day_offset = (event_datetime - datetime.now()).days
+            event_time = event_datetime.strftime("%H:%M:%S")
+            event_name = event[2][:5]
+        else:
+            continue
+
+        if 0 <= event_day_offset < 14:
+            if event_time in time_slots:
+                data[dates[event_day_offset]][time_slots.index(event_time)] = event_name
+            else:
+                print(f"Warning: Skipping event '{event_name}' at {event_time}, not found in time_slots!")
+
+    df = pd.DataFrame(data, index=time_slots)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    if theme == "dark":
+        bg_color = "black"
+        text_color = "white"
+        cell_color = "black"  # Фон ячеек
+        edge_color = "white"  # Цвет границ
+    else:
+        bg_color = "white"
+        text_color = "black"
+        cell_color = "white"
+        edge_color = "black"
+
+    # Создаем изображение
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Устанавливаем фон графика
+    fig.patch.set_facecolor(bg_color)
+    ax.set_facecolor(bg_color)
+
+    # Создаем таблицу
+    table = ax.table(cellText=df.values, colLabels=df.columns, rowLabels=df.index,
+                     cellLoc='center', loc='center')
+
+    # Настраиваем размеры шрифта
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+
+    # Устанавливаем цвета для ячеек и границ
+    for key, cell in table.get_celld().items():
+        cell.set_text_props(color=text_color)  # Цвет текста
+        cell.set_facecolor(cell_color)  # Фон ячейки
+        cell.set_edgecolor(edge_color)  # Цвет границ
+
+    # Скрываем оси
+    ax.axis("off")
+
+    # Сохраняем изображение
+    file_path = f"./User_data/tables/preview_{user_id}.png"
+    plt.savefig(file_path, bbox_inches='tight', facecolor=bg_color)
+    plt.close()
+
+    await update.message.reply_photo(photo=open(file_path, 'rb'))
+
+
+# /mytables
 
 async def change_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # change time/name/notify_before for recurring event
     user_id = update.effective_user.id
