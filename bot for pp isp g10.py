@@ -337,8 +337,8 @@ async def list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         print(f"File {file_name} created and logs saved.")
 
     list_msg = {
-        "en": "Available commands:\n/start - start the bot\n/hello - greet the bot\n/language [en/fr] - change language\n/theme [light/dark] - change theme\n/adds <HH:MM:SS> <DD.MM.YY> <duration in minutes> <notify before minutes> <description> – add a new single event\n/deletes <HH:MM:SS> <DD.MM.YY> – remove an existing single event\n/changes <HH:MM:SS> <DD.MM.YY> <new duration in minutes> <new notify before minutes> <new description> – modify an existing event by providing its original time and date, then updating the details\n/stats - get a graph of the number of recurring events per day\n/statx - get logs and schedule for 2 weeks in excel format\n/feedback <feedback text> - sends feedback to the developers\n(Admin functions: /ping, /getusers)",
-        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\n/adds <HH:MM:SS> <DD.MM.YY> <durée en minutes> <notification avant en minutes> <description> – ajouter un nouvel événement\n/deletes <HH:MM:SS> <DD.MM.YY> – supprimer un événement existant\n/changes <HH:MM:SS> <DD.MM.YY> <nouvelle durée en minutes> <nouvelle notification avant en minutes> <nouvelle description> – Modifier un événement existant en indiquant son heure et sa date d'origine, puis en mettant à jour les détails\n/stats - obtenir un graphique du nombre d'événements récurrents par jour\n/statx - Obtenez les journaux et le calendrier pour 2 semaines au format Excel\n/feedback <texte du feedback> - envoyer les commentaires aux développeurs\n(Fonctions d'administration : /ping, /getusers)"
+        "en": "Available commands:\n/start - start the bot\n/hello - greet the bot\n/language [en/fr] - change language\n/theme [light/dark] - change theme\n/adds <HH:MM:SS> <DD.MM.YY> <duration in minutes> <notify before minutes> <description> – add a new single event\n/deletes <HH:MM:SS> <DD.MM.YY> – remove an existing single event\n/changes <HH:MM:SS> <DD.MM.YY> <new duration in minutes> <new notify before minutes> <new description> – modify an existing event by providing its original time and date, then updating the details\n/addr <number-of-day> <HH:MM:SS> <duration in minutes> <notify before minutes> <description> - add a new recurring event\n/deleter <number-of-day> <HH:MM:SS> - delete recurring event\n/changer <number-of-day> <HH:MM:SS> <new duration in minutes> <new notify before minutes> <new description> - change recurring event\n/stats - get a graph of the number of recurring events per day\n/statx - get logs and schedule for 2 weeks in excel format\n/feedback <feedback text> - sends feedback to the developers\n(Admin functions: /ping, /getusers)",
+        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\n/adds <HH:MM:SS> <DD.MM.YY> <durée en minutes> <notification avant en minutes> <description> – ajouter un nouvel événement\n/deletes <HH:MM:SS> <DD.MM.YY> – supprimer un événement existant\n/changes <HH:MM:SS> <DD.MM.YY> <nouvelle durée en minutes> <nouvelle notification avant en minutes> <nouvelle description> – Modifier un événement existant en indiquant son heure et sa date d'origine, puis en mettant à jour les détails\n/addr <numéro de jour> <HH:MM:SS> <durée en minutes> <notifier avant minutes> <description> - ajouter un nouvel événement récurrent\n/deleter <nombre-de-jours> <HH:MM:SS> - supprimer l'événement récurrent\n/changer <numéro de jour> <HH:MM:SS> <nouvelle durée en minutes> <nouvelle notification avant minutes> <nouvelle description> - modifier l'événement récurrent\n/stats - obtenir un graphique du nombre d'événements récurrents par jour\n/statx - Obtenez les journaux et le calendrier pour 2 semaines au format Excel\n/feedback <texte du feedback> - envoyer les commentaires aux développeurs\n(Fonctions d'administration : /ping, /getusers)"
     }
 
     await update.message.reply_text(list_msg.get(language, list_msg["en"]))
@@ -678,7 +678,7 @@ async def add_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE
     theme = db.theme(user_id=user_id)
     language = db.language(user_id=user_id)
     user_inf = (update.message.text)[
-               6:]  # Сначала идет время ивента, в формате XX:XX:XX YY.YY.YY после чего продолжительность в минутах, одно число, оповестить за сколько минут, тоже одно число, после описание события
+               6:]  # Сначала идет день (цифра) ивента, после время в формате XX:XX:XX после чего продолжительность в минутах, одно число, оповестить за сколько минут, тоже одно число, после описание события
     tmp = False
     notify_before = 0
     day = 0
@@ -814,7 +814,7 @@ async def delete_recurring_event(update: Update, context: ContextTypes.DEFAULT_T
     theme = db.theme(user_id=user_id)
     language = db.language(user_id=user_id)
     user_inf = (update.message.text)[
-               9:]  # Сначала идет время ивента, в формате XX:XX:XX YY.YY.YY после чего продолжительность в минутах, одно число, оповестить за сколько минут, тоже одно число, после описание события
+               9:]  # Сначала идет день (цифра) ивента, после время в формате XX:XX:XX
     tmp = False
     notify_before = 0
     day = 0
@@ -838,12 +838,12 @@ async def delete_recurring_event(update: Update, context: ContextTypes.DEFAULT_T
     if os.path.exists(file_name):
         # If file exists, append the new numbers to a new line
         with open(file_name, 'a') as file:
-            file.write(f"\n[{current_time}] {user_id}: /addr {user_inf}")
+            file.write(f"\n[{current_time}] {user_id}: /deleter {user_inf}")
         print(f"Logs added to {file_name}.")
     else:
         # If file doesn't exist, create the file and write the numbers
         with open(file_name, 'w') as file:
-            file.write(f"[{current_time}] {user_id}: /addr {user_inf}")
+            file.write(f"[{current_time}] {user_id}: /deleter {user_inf}")
         print(f"File {file_name} created and logs saved.")
 
     if check_day(type="recurring", day=day) == True and check_time(type="recurring", time=time):
@@ -948,8 +948,76 @@ async def change_single_event(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 # /changes
 
-async def change_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass #change time/name/notify_before for recurring event
+async def change_recurring_event(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # change time/name/notify_before for recurring event
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/pic/stats_{user_id}_{unique_timestamp}.png"
+    file_name = f"User_data/{user_id}.txt"  # log file
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id=user_id)
+    language = db.language(user_id=user_id)
+    user_inf = (update.message.text)[
+               9:]  # Сначала идет день (цифра) ивента, после время в формате XX:XX:XX после чего новая продолжительность в минутах, одно число, новое значение оповестить за сколько минут, тоже одно число, после новое описание события
+    tmp = False
+    notify_before = 0
+    day = 0
+    time = " "
+    duration = 0
+    description = " "
+    if len(user_inf.split(" ")) >= 5:
+        day = user_inf.split(" ")[0]  # 1 = sunday, 2 = monday, 3 = tuesday, ..., 7 = saturday
+        time = user_inf.split(" ")[1]
+        duration = user_inf.split(" ")[2]
+        notify_before = user_inf.split(" ")[3]
+        description = " ".join(user_inf.split(" ")[4:])
+        tmp = True
+        print(day)
+        print(time)
+        print(duration)
+        print(notify_before)
+        print(description)
+        print(user_inf)
+
+    if os.path.exists(file_name):
+        # If file exists, append the new numbers to a new line
+        with open(file_name, 'a') as file:
+            file.write(f"\n[{current_time}] {user_id}: /changer {user_inf}")
+        print(f"Logs added to {file_name}.")
+    else:
+        # If file doesn't exist, create the file and write the numbers
+        with open(file_name, 'w') as file:
+            file.write(f"[{current_time}] {user_id}: /changer {user_inf}")
+        print(f"File {file_name} created and logs saved.")
+
+    if check_day(type="recurring", day=day) == True and check_time(type="recurring", time=time):
+        if is_recurring_event_unique(user_id=user_id, day=day, time=time) == False:
+            db.delete_recurring_event(user_id=user_id, day_of_week=day, event_time=time)
+            db.add_recurring_event(user_id=user_id, day_of_week=day, event_time=time, description=description, duration_minutes=time, notify_before_minutes=notify_before)
+            if language == "en":
+                await update.message.reply_text(
+                    f"Successfully changed event {description} on {time}")
+            else:
+                await update.message.reply_text(
+                    f"L'événement {description} a été modifié avec succès le {time}")
+        else:
+            if language == "en":
+                await update.message.reply_text(
+                    f"Sorry, it looks like you don't have anything in that timestamp, you can use this command to add recurring event:\n/addr {day} {time} {duration} {notify_before} {description}")
+            else:
+                await update.message.reply_text(
+                    f"Désolé, il semble que vous n'ayez rien dans cet horodatage, vous pouvez utiliser cette commande pour ajouter un événement récurrent:\n/addr {day} {time} {duration} {notify_before} {description}")
+    else:
+        if language == "en":
+            await update.message.reply_text(
+                f"Sorry, wrong input format. Input format: /changer DAY HH.MM.SS N M DESCRIPTION\nWhere\nDAY - number from 1 to 7 (1 = sunday, 2 = monday ...)\nN - event time\nM - how long before the event to notify (<= 60 min)")
+        else:
+            await update.message.reply_text(
+                f"Désolé, format d'entrée incorrect. Format attendu : /changer JOUR HH.MM.SS N M DESCRIPTION\nOù\nJOUR - numéro de 1 à 7 (1 = dimanche, 2 = lundi ...)\nN - durée de l'événement\nM - délai de notification avant l'événement (≤ 60 min)")
+
+    # /changer
 
 async def user_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: #sends excel file of table and log file
     user_id = update.effective_user.id
