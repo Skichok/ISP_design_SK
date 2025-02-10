@@ -2,7 +2,7 @@ import math
 import telegram
 import requests
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler, Application, JobQueue
 from telegram.constants import ParseMode  # For message formatting
 import logging  # For debugging and logging errors
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -25,12 +25,90 @@ import openpyxl
 from openpyxl import Workbook
 import pandas as pd
 import asyncio  # To ensure proper async execution
+import logging
 
+
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 
 db = CalendarBotDB()
 ADMIN_USER_ID = 1130761632  # ID of telegram account
 ADMIN_USERNAME = "ne_sprashival" # Username of telegram account
+TOKEN = "7915205789:AAEQc4SVq-wd3VHlWgKK-VcQy8mCtDbNYY8"
+bot = telegram.Bot(token=TOKEN)
 
+async def send_message(user_id: int, text: str, token=TOKEN):
+    bot = telegram.Bot(token=token)
+    await bot.send_message(chat_id=user_id, text=text, parse_mode=ParseMode.HTML)
+
+async def main(application: Application):
+    # Инициализация задач после старта бота
+    await application.bot.send_message(
+        chat_id=ADMIN_USER_ID,
+        text="🟢 Bot is active now"
+    )
+
+    # Запускаем фоновую задачу
+    application.create_task(check_and_notify(application))
+
+
+async def check_and_notify(context: ContextTypes.DEFAULT_TYPE):
+    """Фоновая задача для проверки уведомлений"""
+    application = context.application
+    bot = application.bot
+    logger = logging.getLogger(__name__)
+
+    try:
+        with CalendarBotDB() as db:
+            now = datetime.now()
+            users = db.get_all_users()
+
+            for user_id in users:
+                try:
+                    # Проверяем разовые события
+                    single_events = db.get_user_events_single(user_id)
+                    for event in single_events:
+                        try:
+                            event_time = datetime.strptime(event[1], "%Y-%m-%d %H:%M:%S")
+                            notify_before = timedelta(minutes=event[4])
+
+                            if now + notify_before >= event_time > now:
+                                await bot.send_message(
+                                    chat_id=user_id,
+                                    text=f"🔔 Напоминание: {event[2]}",
+                                    parse_mode=ParseMode.HTML
+                                )
+                        except Exception as e:
+                            logger.error(f"Ошибка обработки разового события: {e}")
+
+                    # Проверяем повторяющиеся события
+                    recurring_events = db.get_user_events_recurring(user_id)
+                    for event in recurring_events:
+                        try:
+                            day_of_week = event[1]
+                            event_time = datetime.strptime(event[2], "%H:%M:%S").time()
+                            notify_before = timedelta(minutes=event[5])
+
+                            if now.weekday() == day_of_week:
+                                event_datetime = datetime.combine(now.date(), event_time)
+                                if now + notify_before >= event_datetime > now:
+                                    await bot.send_message(
+                                        chat_id=user_id,
+                                        text=f"🔔 Регулярное напоминание: {event[3]}",
+                                        parse_mode=ParseMode.HTML
+                                    )
+                        except Exception as e:
+                            logger.error(f"Ошибка обработки повторяющегося события: {e}")
+
+                except Exception as e:
+                    logger.error(f"Ошибка обработки пользователя {user_id}: {e}")
+
+    except Exception as e:
+        logger.critical(f"Критическая ошибка в цикле проверки: {e}")
+    finally:
+        await asyncio.sleep(60)
 
 def check_time(type: str, time: str) -> bool:
     parts = time.split(":")
@@ -38,7 +116,8 @@ def check_time(type: str, time: str) -> bool:
         return False
 
     try:
-        Hours, Minutes, Seconds = map(int, parts)
+        if len(parts[0]) == len(parts[1]) == len(parts[2]) == 2:
+            Hours, Minutes, Seconds = map(int, parts)
     except ValueError:
         return False
 
@@ -90,6 +169,7 @@ def check_notify_before(type: str, notify_before: str) -> bool:
 
 def is_single_event_unique(user_id: int, stamp) -> bool:
     res = True
+    stamp = datetime.strptime(stamp, "%H:%M:%S %d.%m.%y").strftime("%Y-%m-%d %H:%M:%S")
     for item in db.get_user_events_single(user_id=user_id):
         if stamp not in item:
             continue
@@ -1236,58 +1316,111 @@ async def ai_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: #
     pass # uses DeepSeek/Ollama locally to help user to create his own time table on week (including recurring events) (Идея: пользоваетель пишет что ему надо сделать, не указывая данные в формате, после чего посылается промпт в нейронку, она анализирует и возвращает список комманд, который мы отсылаем пользователю на проверку, если все верно то он поочередно вводит команды)
 
 
-async def check_streak(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass # shows to user his current streak of using bot (Идея: стрик n будет достигаться при планировании n дней подряд, начиная с некоторой даты, неважно повторяющихся или еденичных ивентов)
+async def check_streak(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # shows to user his current streak of using bot (Идея: стрик n будет достигаться при планировании n дней подряд, начиная с некоторой даты, неважно повторяющихся или еденичных ивентов)
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    language = db.language(user_id=user_id)
+    streak = db.get_streak(user_id=user_id)
+
+    if os.path.exists(log_file_name):
+        with open(log_file_name, 'a', encoding='utf-8') as log_file:
+            log_file.write(
+                f"\n[{current_time}] {user_id}: /streak")  # Logging if such a file already exists
+        print(f"Logs added to {log_file_name}.")
+    else:
+        with open(log_file_name, 'w', encoding='utf-8') as log_file:
+            log_file.write(
+                f"[{current_time}] {user_id}: /streak")  # Logging if there is no such file
+        print(f"Logs added to {log_file_name}.")
+
+    if language == "en":
+        await update.message.reply_text(
+            f"Your streak on {current_time} is {streak} days")
+    else:
+        await update.message.reply_text(
+            f"Votre séquence sur {current_time} est de {streak} jours")
 
 
 #app = ApplicationBuilder().token("7332049578:AAE5V5jZbLgfPXiLzJoyqZ8cXViNmi3Y0Sk").build() #Connecting to the bot using token
+async def post_init(app: Application):
+    """Инициализация после запуска"""
+    await app.bot.send_message(ADMIN_USER_ID, "🟢 Bot is active now")
 
-app = ApplicationBuilder().token("7915205789:AAEQc4SVq-wd3VHlWgKK-VcQy8mCtDbNYY8").build() #Connecting to the bot using token
+    # Регистрация задачи через встроенный job_queue
+    app.job_queue.run_repeating(
+        callback=check_and_notify,
+        interval=60,
+        first=10
+    )
 
-app.add_handler(CommandHandler("hello", hello)) #Creating handler for command with function
+if __name__ == '__main__':
+    app = (
+        ApplicationBuilder()
+        .token(TOKEN)
+        .post_init(post_init)
+        .build()
+    )
 
-app.add_handler(CommandHandler("ping", ping)) #Creating handler for command with function
+    # Инициализируем JobQueue
+    #app.job_queue = JobQueue()
+    #app.job_queue.set_application(app)
 
-app.add_handler(CommandHandler("start", start)) #Creating handler for command with function
+    # Добавляем обработчики команд
+    app.add_handler(CommandHandler("hello", hello))  # Creating handler for command with function
 
-app.add_handler(CommandHandler("list", list)) #Creating handler for command with function
+    app.add_handler(CommandHandler("ping", ping))  # Creating handler for command with function
 
-app.add_handler(CommandHandler("qrcode", qr_code)) #Creating handler for command with function
+    app.add_handler(CommandHandler("start", start))  # Creating handler for command with function
 
-app.add_handler(CommandHandler("feedback", feedback)) #Creating handler for command with function
+    app.add_handler(CommandHandler("list", list))  # Creating handler for command with function
 
-#app.add_handler(CommandHandler("learn", learn)) #Creating handler for command with function
+    app.add_handler(CommandHandler("qrcode", qr_code))  # Creating handler for command with function
 
-#app.add_handler(CommandHandler("facedetect", facedetect)) #Creating handler for command with function
+    app.add_handler(CommandHandler("feedback", feedback))  # Creating handler for command with function
 
-app.add_handler(CommandHandler("getusers", admin_check)) #Creating handler for admin-function
+    # app.add_handler(CommandHandler("learn", learn)) #Creating handler for command with function
 
-app.add_handler(CommandHandler("stats", stats)) #Creating handler for statistic graph function
+    # app.add_handler(CommandHandler("facedetect", facedetect)) #Creating handler for command with function
 
-app.add_handler(CommandHandler("theme", theme)) #Creating handler for theme changing
+    app.add_handler(CommandHandler("getusers", admin_check))  # Creating handler for admin-function
 
-app.add_handler(CommandHandler("language", change_language)) #Creating handler for language changing
+    app.add_handler(CommandHandler("stats", stats))  # Creating handler for statistic graph function
 
-app.add_handler(CommandHandler("adds", add_single_event)) #Creating handler for function to add single event
+    app.add_handler(CommandHandler("theme", theme))  # Creating handler for theme changing
 
-app.add_handler(CommandHandler("deletes", delete_single_event)) #Creating handler for function to delete single event
+    app.add_handler(CommandHandler("language", change_language))  # Creating handler for language changing
 
-app.add_handler(CommandHandler("deleter", delete_recurring_event)) #Creating handler for function to delete recurring event
+    app.add_handler(CommandHandler("adds", add_single_event))  # Creating handler for function to add single event
 
-app.add_handler(CommandHandler("addr", add_recurring_event)) #Creating handler for function to add recurring event
+    app.add_handler(
+        CommandHandler("deletes", delete_single_event))  # Creating handler for function to delete single event
 
-app.add_handler(CommandHandler("mytables", get_user_plan)) #Creating handler for function to get plan for next 2 weeks as image
+    app.add_handler(
+        CommandHandler("deleter", delete_recurring_event))  # Creating handler for function to delete recurring event
 
-app.add_handler(CommandHandler("changes", change_single_event)) #Creating handler for function to change single event
+    app.add_handler(CommandHandler("addr", add_recurring_event))  # Creating handler for function to add recurring event
 
-app.add_handler(CommandHandler("changer", change_recurring_event)) #Creating handler for function to change recurring event
+    app.add_handler(CommandHandler("mytables",
+                                   get_user_plan))  # Creating handler for function to get plan for next 2 weeks as image
 
-app.add_handler(CommandHandler("statx", user_data)) #Creating handler for function to get plan for next 2 weeks as Excel file and logs
+    app.add_handler(
+        CommandHandler("changes", change_single_event))  # Creating handler for function to change single event
 
-app.add_handler(CommandHandler("aihelp", ai_help)) #Creating handler for function to work with AI
+    app.add_handler(
+        CommandHandler("changer", change_recurring_event))  # Creating handler for function to change recurring event
 
-app.add_handler(CommandHandler("streak", check_streak)) #Creating handler for function to check streak of using bot for
+    app.add_handler(CommandHandler("statx",
+                                   user_data))  # Creating handler for function to get plan for next 2 weeks as Excel file and logs
 
-app.run_polling()
+    app.add_handler(CommandHandler("aihelp", ai_help))  # Creating handler for function to work with AI
+
+    app.add_handler(
+        CommandHandler("streak", check_streak))  # Creating handler for function to check streak of using bot for
+
+    # Запускаем бота
+    app.run_polling()
 
 # :)

@@ -1,8 +1,20 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class CalendarBotDB:
     dbpath = "./User_data/schedules.db"
+
+    def __enter__(self):
+        """Для поддержки контекстного менеджера"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Автоматическое закрытие соединения при выходе из контекста"""
+        self.close()
+        if exc_type is not None:
+            print(f"Произошла ошибка: {exc_type}, {exc_val}")
+        return False
+
     def __init__(self, db_name=dbpath):
         self.connection = sqlite3.connect(db_name)
         self.cursor = self.connection.cursor()
@@ -75,6 +87,7 @@ class CalendarBotDB:
 
     def add_single_event(self, user_id, event_timestamp, description, duration_minutes, notify_before_minutes):
         """Adds a one-time event."""
+        event_timestamp = datetime.strptime(event_timestamp, "%H:%M:%S %d.%m.%y").strftime("%Y-%m-%d %H:%M:%S")
         self.cursor.execute(
             """
             INSERT INTO single_events (user_id, event_timestamp, description, duration_minutes, notify_before_minutes)
@@ -86,6 +99,7 @@ class CalendarBotDB:
 
     def add_recurring_event(self, user_id, day_of_week, event_time, description, duration_minutes, notify_before_minutes):
         """Adds a recurring event."""
+
         self.cursor.execute(
             """
             INSERT INTO recurring_events (user_id, day_of_week, event_time, description, duration_minutes, notify_before_minutes)
@@ -175,6 +189,11 @@ class CalendarBotDB:
             (user_id, event_timestamp),
         )
         self.connection.commit()
+
+    def get_all_users(self):
+        """Возвращает список всех user_id из таблицы users"""
+        self.cursor.execute("SELECT user_id FROM users")
+        return [row[0] for row in self.cursor.fetchall()]
 
     def switch_theme(self, user_id, theme):
         """Switches the user's theme."""
@@ -271,8 +290,29 @@ class CalendarBotDB:
 
         return stats_dict
 
-    def get_streak(self):
-        pass
+    def get_streak(self, user_id):
+        """Returns the number of consecutive days with an active event up to today."""
+        current_date = datetime.now().date()
+        streak = 0
+
+        while True:
+            self.cursor.execute(
+                """
+                SELECT COUNT(*) FROM single_events
+                WHERE user_id = ? AND DATE(event_timestamp) = ?
+                AND (delete_date IS NULL OR delete_date > ?)
+                """,
+                (user_id, current_date, current_date)
+            )
+
+            count = self.cursor.fetchone()[0]
+            if count == 0:
+                break
+
+            streak += 1
+            current_date -= timedelta(days=1)
+
+        return streak
 
     def close(self):
         """Closes the database connection."""
