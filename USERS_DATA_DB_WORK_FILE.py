@@ -8,6 +8,16 @@ class CalendarBotDB:
         self.cursor = self.connection.cursor()
         self._create_tables()
 
+    def drop_table(self):
+        registration_timestamp = datetime.now()
+        self.cursor.executescript(
+            """
+            DROP TABLE recurring_events;
+            DROP TABLE single_events;
+            """,
+        )
+        self.connection.commit()
+
     def _create_tables(self):
         """Creates tables if they do not exist."""
         self.cursor.executescript(
@@ -28,6 +38,8 @@ class CalendarBotDB:
                 description TEXT,
                 duration_minutes INTEGER,
                 notify_before_minutes INTEGER,
+                insert_date DATETIME DEFAULT (DATETIME('now')),
+                delete_date DATETIME DEFAULT NULL,
                 UNIQUE(user_id, event_timestamp),
                 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
             );
@@ -40,6 +52,8 @@ class CalendarBotDB:
                 description TEXT,
                 duration_minutes INTEGER,
                 notify_before_minutes INTEGER,
+                insert_date DATETIME DEFAULT (DATETIME('now')),
+                delete_date DATETIME DEFAULT NULL,
                 UNIQUE(user_id, day_of_week, event_time),
                 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
             );
@@ -108,9 +122,10 @@ class CalendarBotDB:
                 event_timestamp, 
                 description, 
                 duration_minutes, 
-                notify_before_minutes 
+                notify_before_minutes
             FROM single_events 
             WHERE user_id = ?
+                AND delete_date IS NULL
             """,
             (user_id,),
         )
@@ -129,6 +144,7 @@ class CalendarBotDB:
                 notify_before_minutes 
             FROM recurring_events 
             WHERE user_id = ?
+                AND delete_date IS NULL
             """,
             (user_id,),
         )
@@ -138,8 +154,10 @@ class CalendarBotDB:
         """Deletes a recurring event."""
         self.cursor.execute(
             """
-            DELETE FROM recurring_events 
+            UPDATE recurring_events 
+            SET delete_date = (DATETIME('now'))
             WHERE user_id = ? AND day_of_week = ? AND event_time = ?
+                AND delete_date IS NULL
             """,
             (user_id, day_of_week, event_time),
         )
@@ -149,8 +167,10 @@ class CalendarBotDB:
         """Deletes a single event."""
         self.cursor.execute(
             """
-            DELETE FROM single_events 
+            UPDATE single_events 
+            SET delete_date = (DATETIME('now'))
             WHERE user_id = ? AND event_timestamp = ?
+                AND delete_date IS NULL
             """,
             (user_id, event_timestamp),
         )
@@ -235,6 +255,7 @@ class CalendarBotDB:
             SELECT day_of_week, COUNT(*) 
             FROM recurring_events 
             WHERE user_id = ? 
+                AND delete_date IS NULL
             GROUP BY day_of_week
             """,
             (user_id,)
@@ -249,6 +270,9 @@ class CalendarBotDB:
             stats_dict[day_of_week] = count
 
         return stats_dict
+
+    def get_streak(self):
+        pass
 
     def close(self):
         """Closes the database connection."""
