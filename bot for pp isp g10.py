@@ -26,6 +26,7 @@ from openpyxl import Workbook
 import pandas as pd
 import asyncio  # To ensure proper async execution
 import logging
+import ollama
 
 
 logging.basicConfig(
@@ -107,8 +108,7 @@ async def check_and_notify(context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.critical(f"Критическая ошибка в цикле проверки: {e}")
-    finally:
-        await asyncio.sleep(60)
+    # Убрать await asyncio.sleep(60) !
 
 def check_time(type: str, time: str) -> bool:
     parts = time.split(":")
@@ -483,8 +483,8 @@ async def list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         print(f"File {file_name} created and logs saved.")
 
     list_msg = {
-        "en": "Available commands:\n/start - start the bot\n/hello - greet the bot\n/language [en/fr] - change language\n/theme [light/dark] - change theme\n/adds <HH:MM:SS> <DD.MM.YY> <duration in minutes> <notify before minutes> <description> – add a new single event\n/deletes <HH:MM:SS> <DD.MM.YY> – remove an existing single event\n/changes <HH:MM:SS> <DD.MM.YY> <new duration in minutes> <new notify before minutes> <new description> – modify an existing event by providing its original time and date, then updating the details\n/addr <number-of-day> <HH:MM:SS> <duration in minutes> <notify before minutes> <description> - add a new recurring event\n/deleter <number-of-day> <HH:MM:SS> - delete recurring event\n/changer <number-of-day> <HH:MM:SS> <new duration in minutes> <new notify before minutes> <new description> - change recurring event\n/mytables - get image of your plan for next two weeks\n/stats - get a graph of the number of recurring events per day\n/statx - get logs and schedule for 2 weeks in excel format\n/feedback <feedback text> - sends feedback to the developers\n(Admin functions: /ping, /getusers)",
-        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\n/adds <HH:MM:SS> <DD.MM.YY> <durée en minutes> <notification avant en minutes> <description> – ajouter un nouvel événement\n/deletes <HH:MM:SS> <DD.MM.YY> – supprimer un événement existant\n/changes <HH:MM:SS> <DD.MM.YY> <nouvelle durée en minutes> <nouvelle notification avant en minutes> <nouvelle description> – Modifier un événement existant en indiquant son heure et sa date d'origine, puis en mettant à jour les détails\n/addr <numéro de jour> <HH:MM:SS> <durée en minutes> <notifier avant minutes> <description> - ajouter un nouvel événement récurrent\n/deleter <nombre-de-jours> <HH:MM:SS> - supprimer l'événement récurrent\n/changer <numéro de jour> <HH:MM:SS> <nouvelle durée en minutes> <nouvelle notification avant minutes> <nouvelle description> - modifier l'événement récurrent\n/mytables - obtenez une image de votre plan pour les deux prochaines semaines\n/stats - obtenir un graphique du nombre d'événements récurrents par jour\n/statx - Obtenez les journaux et le calendrier pour 2 semaines au format Excel\n/feedback <texte du feedback> - envoyer les commentaires aux développeurs\n(Fonctions d'administration : /ping, /getusers)"
+        "en": "Available commands:\n/start - start the bot\n/hello - greet the bot\n/language [en/fr] - change language\n/theme [light/dark] - change theme\n/adds <HH:MM:SS> <DD.MM.YY> <duration in minutes> <notify before minutes> <description> – add a new single event\n/deletes <HH:MM:SS> <DD.MM.YY> – remove an existing single event\n/changes <HH:MM:SS> <DD.MM.YY> <new duration in minutes> <new notify before minutes> <new description> – modify an existing event by providing its original time and date, then updating the details\n/addr <number-of-day> <HH:MM:SS> <duration in minutes> <notify before minutes> <description> - add a new recurring event\n/deleter <number-of-day> <HH:MM:SS> - delete recurring event\n/changer <number-of-day> <HH:MM:SS> <new duration in minutes> <new notify before minutes> <new description> - change recurring event\n/aihelp <prompt> - write a prompt that describes how you need to change the schedule, what to add/change/delete. AI will automatically generate commands to change the prompt\n/mytables - get image of your plan for next two weeks\n/streak - shows how many days in a row were planned until today\n/stats - get a graph of the number of recurring events per day\n/statx - get logs and schedule for 2 weeks in excel format\n/feedback <feedback text> - sends feedback to the developers\n(Admin functions: /ping, /getusers)",
+        "fr": "Commandes disponibles:\n/start - démarrer le bot\n/hello - saluer le bot\n/language [en/fr] - changer de langue\n/theme [clair/foncé] - changer de thème\n/adds <HH:MM:SS> <DD.MM.YY> <durée en minutes> <notification avant en minutes> <description> – ajouter un nouvel événement\n/deletes <HH:MM:SS> <DD.MM.YY> – supprimer un événement existant\n/changes <HH:MM:SS> <DD.MM.YY> <nouvelle durée en minutes> <nouvelle notification avant en minutes> <nouvelle description> – Modifier un événement existant en indiquant son heure et sa date d'origine, puis en mettant à jour les détails\n/addr <numéro de jour> <HH:MM:SS> <durée en minutes> <notifier avant minutes> <description> - ajouter un nouvel événement récurrent\n/deleter <nombre-de-jours> <HH:MM:SS> - supprimer l'événement récurrent\n/changer <numéro de jour> <HH:MM:SS> <nouvelle durée en minutes> <nouvelle notification avant minutes> <nouvelle description> - modifier l'événement récurrent\n/aihelp <prompt> - écrivez une invite qui décrit comment vous devez modifier la planification, ce qu'il faut ajouter/modifier/supprimer. L'IA générera automatiquement des commandes pour modifier l'invite\n/mytables - obtenez une image de votre plan pour les deux prochaines semaines\n/streak - montre combien de jours consécutifs ont été prévus jusqu'à aujourd'hui\n/stats - obtenir un graphique du nombre d'événements récurrents par jour\n/statx - Obtenez les journaux et le calendrier pour 2 semaines au format Excel\n/feedback <texte du feedback> - envoyer les commentaires aux développeurs\n(Fonctions d'administration : /ping, /getusers)"
     }
 
     await update.message.reply_text(list_msg.get(language, list_msg["en"]))
@@ -1313,7 +1313,35 @@ async def user_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def ai_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # last to do
-    pass # uses DeepSeek/Ollama locally to help user to create his own time table on week (including recurring events) (Идея: пользоваетель пишет что ему надо сделать, не указывая данные в формате, после чего посылается промпт в нейронку, она анализирует и возвращает список комманд, который мы отсылаем пользователю на проверку, если все верно то он поочередно вводит команды)
+    user_id = update.effective_user.id
+    username = update.effective_user.username
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unique_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    log_file_name = f"User_data/{user_id}.txt"
+    file_path = f"./User_data/tables/table_{user_id}_{unique_timestamp}.xlsx"
+    stats_dict = db.stats(user_id=user_id)
+    theme = db.theme(user_id=user_id)
+    language = db.language(user_id=user_id)
+    file_name = f"User_data/{user_id}.txt"
+    user_prompt = (update.message.text)[8:]
+    prompt = f"This message is automatically generated.\nYou need to help the user plan his schedule. He will write the text below, and you will have to define and rewrite his events using these commands:\n/adds <HH:MM:SS> <DD.MM.YY> <duration in minutes> <notify before minutes> <description> \u2013 add a new single event\n/deletes <HH:MM:SS> <DD.MM.YY> \u2013 remove an existing single event\n/changes <HH:MM:SS> <DD.MM.YY> <new duration in minutes> <new notify before minutes> <new description> \u2013 modify an existing event by providing its original time and date, then updating the details\n/addr <number-of-day> <HH:MM:SS> <duration in minutes> <notify before minutes> <description> - add a new recurring event\n/deleter <number-of-day> <HH:MM:SS> - delete recurring event\n/changer <number-of-day> <HH:MM:SS> <new duration in minutes> <new notify before minutes> <new description> - change recurring event\n\ntoday's date: {current_time}\n\nhere is the text from the user:\n\nbeginning of the user's text\n\'{user_prompt}\'\nend of the user's text\n\nif there are no events in the text, then reply \"no suitable events found\" in the same language the user wrote. Otherwise, send a list of commands without additional information, only from the text and only clearly defined events (set the duration and notify before to 60 and 0 by default, respectively).\n\nAS ANSWER, GIVE A READY SET OF COMMANDS /adds and /addr.\nIF THE USER ASKS, THEN ADD /changer, /changes, /deleter and /deletes. Examples of using commands with the data above."
+    print(prompt)
+    if language == "en":
+        await update.message.reply_text(
+            f"Generating response, please wait...")
+    else:
+        await update.message.reply_text(
+            f"Génération de réponse, veuillez patienter...")
+    response = ollama.chat(model="gemma2", messages=[{"role": "user", "content": prompt}])
+    print(response['message']['content'])
+    if language == "en":
+        await update.message.reply_text(
+            f"Here is AI answer, check it and type commands, if everything fine:\n\n{response['message']['content']}")
+    else:
+        await update.message.reply_text(
+            f"Voici la réponse de l'IA, vérifiez-la et tapez des commandes, si tout va bien:\n\n{response['message']['content']}")
+
+    # uses Gemma2:9b/Ollama locally to help user to create his own time table on week (including recurring events) (Идея: пользоваетель пишет что ему надо сделать, не указывая данные в формате, после чего посылается промпт в нейронку, она анализирует и возвращает список комманд, который мы отсылаем пользователю на проверку, если все верно то он поочередно вводит команды)
 
 
 async def check_streak(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # shows to user his current streak of using bot (Идея: стрик n будет достигаться при планировании n дней подряд, начиная с некоторой даты, неважно повторяющихся или еденичных ивентов)
