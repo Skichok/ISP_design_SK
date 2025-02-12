@@ -84,7 +84,7 @@ async def check_and_notify(context: ContextTypes.DEFAULT_TYPE):
                             if now >= event_time - notify_before and res == False:
                                 await bot.send_message(
                                     chat_id=user_id,
-                                    text=f"🔔 Напоминание: {event[2]}",
+                                    text=f"🔔 {event[2]}",
                                     parse_mode=ParseMode.HTML
                                 )
                                 print(f"{user_id} just got notification!")
@@ -121,7 +121,7 @@ async def check_and_notify(context: ContextTypes.DEFAULT_TYPE):
                                 if now >= event_datetime - notify_before and db.is_recurring_event_notified(event_id=event[6], event_datetime=event_datetime) == False:
                                     await bot.send_message(
                                         chat_id=user_id,
-                                        text=f"🔔 Регулярное напоминание: {event[3]}",
+                                        text=f"🔔 {event[3]}",
                                         parse_mode=ParseMode.HTML
                                     )
                                     print(f"{user_id} just got notification!")
