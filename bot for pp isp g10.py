@@ -55,13 +55,17 @@ async def main(application: Application):
     application.create_task(check_and_notify(application))
 
 
+#async def check_and_notify(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def check_and_notify(context: ContextTypes.DEFAULT_TYPE):
     """Фоновая задача для проверки уведомлений"""
+    print("Checker started")
     application = context.application
     bot = application.bot
     logger = logging.getLogger(__name__)
+    #print(0)
 
     try:
+        #print(1)
         with CalendarBotDB() as db:
             now = datetime.now()
             users = db.get_all_users()
@@ -74,39 +78,66 @@ async def check_and_notify(context: ContextTypes.DEFAULT_TYPE):
                         try:
                             event_time = datetime.strptime(event[1], "%Y-%m-%d %H:%M:%S")
                             notify_before = timedelta(minutes=event[4])
-
-                            if now + notify_before >= event_time > now:
+                            print(type(event[5]))
+                            res = db.is_single_event_notified(event_id=event[5])
+                            print("NO0", res)
+                            if now >= event_time - notify_before and res == False:
                                 await bot.send_message(
                                     chat_id=user_id,
                                     text=f"🔔 Напоминание: {event[2]}",
                                     parse_mode=ParseMode.HTML
                                 )
+                                print(f"{user_id} just got notification!")
+                                db.insert_notified_single(event_id=event[5])
                         except Exception as e:
+                            #print(2)
                             logger.error(f"Ошибка обработки разового события: {e}")
 
                     # Проверяем повторяющиеся события
                     recurring_events = db.get_user_events_recurring(user_id)
                     for event in recurring_events:
+                        print(event)
                         try:
-                            day_of_week = event[1]
-                            event_time = datetime.strptime(event[2], "%H:%M:%S").time()
-                            notify_before = timedelta(minutes=event[5])
+                            #print(3)
+                            day_of_week = event[1]  # День недели события (например, 2 - понедельник)
+                            event_time = datetime.strptime(event[2], "%H:%M:%S").time()  # Время события
+                            notify_before = timedelta(minutes=event[5])  # За сколько минут напомнить
+                            now = datetime.now()  # Текущее время
 
-                            if now.weekday() == day_of_week:
-                                event_datetime = datetime.combine(now.date(), event_time)
-                                if now + notify_before >= event_datetime > now:
+                            today_weekday = now.weekday()  # День недели сегодня (0 - понедельник, 6 - воскресенье)
+                            if today_weekday == 6: # исправляем как в функциях ниже
+                                today_weekday = 1
+                            else:
+                                today_weekday += 2
+
+                            print(today_weekday, type(today_weekday))
+                            print(day_of_week, type(today_weekday))
+
+                            if today_weekday == day_of_week:  # Если сегодня нужный день недели
+                                event_datetime = datetime.combine(now.date(), event_time)  # Создаем datetime события
+
+                                # Проверяем, пора ли отправлять уведомление
+                                print("NO1")
+                                if now >= event_datetime - notify_before and db.is_recurring_event_notified(event_id=event[6], event_datetime=event_datetime) == False:
                                     await bot.send_message(
                                         chat_id=user_id,
                                         text=f"🔔 Регулярное напоминание: {event[3]}",
                                         parse_mode=ParseMode.HTML
                                     )
+                                    print(f"{user_id} just got notification!")
+                                    db.insert_notified_recurring(event_id=event[6], event_datetime=event_datetime)
+
                         except Exception as e:
+                            #print(4)
                             logger.error(f"Ошибка обработки повторяющегося события: {e}")
 
+
                 except Exception as e:
+                    #print(5)
                     logger.error(f"Ошибка обработки пользователя {user_id}: {e}")
 
     except Exception as e:
+        #print(6)
         logger.critical(f"Критическая ошибка в цикле проверки: {e}")
     # Убрать await asyncio.sleep(60) !
 
@@ -1378,11 +1409,7 @@ async def post_init(app: Application):
     await app.bot.send_message(ADMIN_USER_ID, "🟢 Bot is active now")
 
     # Регистрация задачи через встроенный job_queue
-    app.job_queue.run_repeating(
-        callback=check_and_notify,
-        interval=60,
-        first=10
-    )
+    app.job_queue.run_repeating(callback=check_and_notify, interval=60, first=10)
 
 if __name__ == '__main__':
     app = (
@@ -1447,6 +1474,8 @@ if __name__ == '__main__':
 
     app.add_handler(
         CommandHandler("streak", check_streak))  # Creating handler for function to check streak of using bot for
+
+    app.add_handler(CommandHandler("check", check_and_notify))
 
     # Запускаем бота
     app.run_polling()

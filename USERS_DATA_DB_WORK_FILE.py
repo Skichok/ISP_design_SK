@@ -69,6 +69,15 @@ class CalendarBotDB:
                 UNIQUE(user_id, day_of_week, event_time),
                 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
             );
+            
+            CREATE TABLE IF NOT EXISTS single_events_notified (
+                event_id INTEGER PRIMARY KEY
+            );
+            
+            CREATE TABLE IF NOT EXISTS recurring_events_notified (
+                event_id INTEGER,
+                event_timestamp DATETIME
+                );
             """
         )
         self.connection.commit()
@@ -136,7 +145,8 @@ class CalendarBotDB:
                 event_timestamp, 
                 description, 
                 duration_minutes, 
-                notify_before_minutes
+                notify_before_minutes,
+                event_id
             FROM single_events 
             WHERE user_id = ?
                 AND delete_date IS NULL
@@ -155,7 +165,8 @@ class CalendarBotDB:
                 event_time, 
                 description, 
                 duration_minutes, 
-                notify_before_minutes 
+                notify_before_minutes,
+                event_id
             FROM recurring_events 
             WHERE user_id = ?
                 AND delete_date IS NULL
@@ -313,6 +324,62 @@ class CalendarBotDB:
             current_date -= timedelta(days=1)
 
         return streak
+
+    def is_single_event_notified(self, event_id):
+
+        self.cursor.execute(
+            """
+            SELECT COUNT(*) FROM single_events_notified
+            WHERE event_id = ?
+            """,
+            (event_id,),
+            )
+
+        count = self.cursor.fetchone()[0]
+        if count == 0:
+            return False
+        else:
+            return True
+
+    def is_recurring_event_notified(self, event_id, event_datetime):
+
+        self.cursor.execute(
+            """
+            SELECT COUNT(*) FROM recurring_events_notified
+            WHERE event_id = ?
+            AND event_timestamp = ?
+            """,
+            (event_id, event_datetime),
+        )
+
+        count = self.cursor.fetchone()[0]
+        if count == 0:
+            return False
+        else:
+            return True
+    def insert_notified_recurring(self, event_id, event_datetime):
+        self.cursor.execute(
+            """
+            INSERT INTO recurring_events_notified (event_id, event_timestamp)
+            VALUES (?, ?)
+            """,
+            (event_id, event_datetime)
+        )
+        self.connection.commit()
+
+        return 0
+
+    def insert_notified_single(self, event_id):
+        self.cursor.execute(
+            """
+            INSERT INTO single_events_notified (event_id)
+            VALUES (?)
+            """,
+            (event_id,)
+        )
+        self.connection.commit()
+
+        return 0
 
     def close(self):
         """Closes the database connection."""
