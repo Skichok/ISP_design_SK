@@ -329,7 +329,8 @@ def shift_events_to_excel(data1, data2, tablename, language="en"):
     # Fill events into rows
     for event in all_events:
         if len(event) == 6:
-            event_day_offset = event[1] - 2  # Day of the week (2=Monday)
+            print(event)
+            event_day_offset = int(event[1]) - 2  # Day of the week (2=Monday)
             event_time = event[2]
             event_name = event[3]
         elif len(event) == 5:
@@ -365,58 +366,87 @@ from telegram.ext import ContextTypes
 import matplotlib.pyplot as plt
 import pandas as pd
 
-def shift_events(data1, data2, tablename, language="en"):
+def shift_events_to_excel(data1, data2, tablename, language="en"):
+    # Check if both data arrays are empty
     if not data1 and not data2:
-        print("Both data arrays are empty." if language == "en" else "Les deux tableaux de données sont vides.")
+        if language == "fr":
+            print("Les deux tableaux de données sont vides.")
+        else:
+            print("Both data arrays are empty.")
         return
 
-    all_events = data1 + data2
+    # Create a new Excel file
     wb = Workbook()
     ws = wb.active
     ws.title = "Schedule"
-    headers = ["Time"] + [(datetime.now() + timedelta(days=i)).strftime("%d.%m.%y") for i in range(14)]
+
+    # Prepare headers: Time followed by dates for the next 14 days
+    start_date = datetime.now().date()
+    headers = ["Time"] + [(start_date + timedelta(days=i)).strftime("%d.%m.%y") for i in range(14)]
     ws.append(headers)
-    all_events.sort(key=lambda x: x[2])
+
+    # Dictionary to hold events by time and day offset
     time_rows = {}
 
-    for event in all_events:
-        if len(event) == 6:
-            event_time = event[2]
-        elif len(event) == 5:
-            event_datetime = datetime.strptime(event[1], "%H:%M:%S %d.%m.%y")
-            if event_datetime.date() <= datetime.now().date():
-                continue
-            event_time = event_datetime.strftime("%H:%M:%S")
-        else:
+    # Process recurring events (data1)
+    for event in data1:
+        if len(event) < 3:
+            continue  # Invalid event structure
+        user_id, day_of_week_str, event_time, *rest = event
+        try:
+            day_of_week = int(day_of_week_str)
+        except ValueError:
+            continue  # Invalid day of the week
+
+        # Calculate day of week in Python terms (Monday=0)
+        # Assuming day_of_week starts at 2 for Monday (adjust if necessary)
+        target_weekday = day_of_week - 2  # Convert to Python weekday (Monday=0)
+        for day_offset in range(14):
+            current_date = start_date + timedelta(days=day_offset)
+            if current_date.weekday() == target_weekday:
+                if event_time not in time_rows:
+                    time_rows[event_time] = [''] * 14
+                # Use the event name (assuming it's the 4th element)
+                event_name = rest[0] if len(rest) > 0 else "Event"
+                time_rows[event_time][day_offset] = event_name
+
+    # Process single events (data2)
+    for event in data2:
+        if len(event) < 2:
+            continue  # Invalid event structure
+        user_id, datetime_str, *rest = event
+        try:
+            event_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            continue  # Invalid datetime format
+
+        # Check if the event is within the next 14 days
+        if event_datetime.date() < start_date:
+            continue
+        delta = event_datetime.date() - start_date
+        day_offset = delta.days
+        if day_offset >= 14:
             continue
 
+        event_time = event_datetime.strftime("%H:%M:%S")
+        event_name = rest[0] if len(rest) > 0 else "Event"
         if event_time not in time_rows:
-            time_rows[event_time] = ["" for _ in range(14)]
+            time_rows[event_time] = [''] * 14
+        time_rows[event_time][day_offset] = event_name
 
-    for event in all_events:
-        if len(event) == 6:
-            event_day_offset = event[1] - 2
-            event_time = event[2]
-            event_name = event[3][:5]
-        elif len(event) == 5:
-            event_datetime = datetime.strptime(event[1], "%H:%M:%S %d.%m.%y")
-            event_day_offset = (event_datetime - datetime.now()).days
-            if event_datetime.date() <= datetime.now().date():
-                continue
-            event_time = event_datetime.strftime("%H:%M:%S")
-            event_name = event[2][:5]
-        else:
-            continue
+    # Sort events by time
+    sorted_times = sorted(time_rows.keys())
 
-        if 0 <= event_day_offset < 14:
-            time_rows[event_time][event_day_offset] = event_name
+    # Write rows to Excel
+    for time in sorted_times:
+        row = [time] + time_rows[time]
+        ws.append(row)
 
-    for time, events in sorted(time_rows.items()):
-        ws.append([time] + events)
-
-    file_path = f"./User_data/tables/{tablename}.xlsx"
-    wb.save(file_path)
-    print(f"File successfully saved at: {file_path}" if language == "en" else f"Fichier enregistré avec succès à l'emplacement : {file_path}")
+    # Save the Excel file
+    filename = f"{tablename}.xlsx"
+    wb.save(filename)
+    print(f"File successfully saved at: {filename}" if language == "en" else f"Fichier enregistré avec succès à l'emplacement : {filename}")
+    return filename
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
@@ -1323,7 +1353,7 @@ async def user_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         print(f"File {file_name} created and logs saved.")
 
     print(db.get_user_events_recurring(user_id=user_id), db.get_user_events_single(user_id=user_id))
-    shift_events_to_excel(data1=db.get_user_events_recurring(user_id=user_id), data2=db.get_user_events_single(user_id=user_id), tablename=f"table_{user_id}_{unique_timestamp}", language=language)
+    shift_events_to_excel(data1=db.get_user_events_recurring(user_id=user_id), data2=db.get_user_events_single(user_id=user_id), tablename=f"./User_data/tables/table_{user_id}_{unique_timestamp}", language=language)
     if not os.path.exists(file_path):
         if language == "en":
             await update.message.reply_text(f"You have not created a schedule yet. Please create one.")
