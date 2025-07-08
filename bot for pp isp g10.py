@@ -330,7 +330,7 @@ def shift_events_to_excel(data1, data2, tablename, language="en"):
     for event in all_events:
         if len(event) == 6:
             print(event)
-            event_day_offset = int(event[1]) - 2  # Day of the week (2=Monday)
+            event_day_offset = (int(event[1]) % 7) + 1  # Convert to desired format, Day of the week (2=Monday)
             event_time = event[2]
             event_name = event[3]
         elif len(event) == 5:
@@ -1119,16 +1119,26 @@ async def get_user_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     data = {date: ["" for _ in time_slots] for date in dates}
 
     for event in all_events:
-        if len(event) == 6:
-            event_day_offset = event[1] - 2
+        if len(event) == 6:  # Recurring event
+            if isinstance(event[1], int):  # Check if it's a number (day of week)
+                event_day_offset = event[1] - 2  # Convert weekday number (2 = Monday, ...) to offset
+            else:
+                print(f"Skipping event {event}, unexpected format for recurring event!")
+                continue
             event_time = event[2]
             event_name = event[3][:5]
-        elif len(event) == 5:
-            event_datetime = datetime.strptime(event[1], "%H:%M:%S %d.%m.%y")
-            event_day_offset = (event_datetime - datetime.now()).days
-            event_time = event_datetime.strftime("%H:%M:%S")
-            event_name = event[2][:5]
+
+        elif len(event) == 5:  # Single event (specific date)
+            try:
+                event_datetime = datetime.strptime(event[1], "%H:%M:%S %d.%m.%y")
+                event_day_offset = (event_datetime - datetime.now()).days
+                event_time = event_datetime.strftime("%H:%M:%S")
+                event_name = event[2][:5]
+            except ValueError as e:
+                print(f"Skipping event {event}, invalid date format: {e}")
+                continue
         else:
+            print(f"Skipping unknown event format: {event}")
             continue
 
         if 0 <= event_day_offset < 14:
@@ -1138,7 +1148,7 @@ async def get_user_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 print(f"Warning: Skipping event '{event_name}' at {event_time}, not found in time_slots!")
 
     df = pd.DataFrame(data, index=time_slots)
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(12, 8))
     if theme == "dark":
         bg_color = "black"
         text_color = "white"
